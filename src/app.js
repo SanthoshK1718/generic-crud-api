@@ -1,7 +1,8 @@
-require("dotenv").config();
+if (!process.env.VERCEL) {
+    require("dotenv").config();
+}
 
-const express = require("express");
-const cors = require("cors");
+const express = require("express");const cors = require("cors");
 
 const { connectDatabase } = require("./config/database");
 const organizationRoutes = require("./routes/organizationRoutes");
@@ -18,6 +19,18 @@ app.use(express.json({ type: "*/*" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(parseJsonBody);
 
+app.get("/", (req, res) => {
+    sendSuccess(res, { message: "Generic CRUD API is running" });
+});
+
+app.get("/health", (req, res) => {
+    sendSuccess(res, {
+        message: "API is healthy",
+        mongoConfigured: Boolean(process.env.MONGODB_URI),
+        databaseConfigured: Boolean(process.env.MONGODB_DATABASE),
+    });
+});
+
 app.use(async (req, res, next) => {
     try {
         await connectDatabase();
@@ -25,14 +38,6 @@ app.use(async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-});
-
-app.get("/", (req, res) => {
-    sendSuccess(res, { message: "Generic CRUD API is running" });
-});
-
-app.get("/health", (req, res) => {
-    sendSuccess(res, { message: "API is healthy" });
 });
 
 app.use("/organization", organizationRoutes);
