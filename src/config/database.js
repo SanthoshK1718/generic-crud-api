@@ -1,27 +1,44 @@
-const { MongoClient } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 
 let client;
 let database;
+
+const getMongoUri = () => {
+    const uri = process.env.MONGODB_URI;
+
+    if (!uri) {
+        throw new Error("MONGODB_URI is not defined");
+    }
+
+    if (uri.includes("retryWrites=")) {
+        return uri;
+    }
+
+    const separator = uri.includes("?") ? "&" : "?";
+    return `${uri}${separator}retryWrites=true&w=majority`;
+};
 
 const connectDatabase = async () => {
     if (database) {
         return database;
     }
 
-    if (!process.env.MONGODB_URI) {
-        throw new Error("MONGODB_URI is not defined");
-    }
-
-    client = new MongoClient(process.env.MONGODB_URI, {
+    client = new MongoClient(getMongoUri(), {
+        serverApi: {
+            version: ServerApiVersion.v1,
+            strict: true,
+            deprecationErrors: true,
+        },
         serverSelectionTimeoutMS: 10000,
         connectTimeoutMS: 10000,
+        autoSelectFamily: false,
     });
 
     try {
         await client.connect();
     } catch (error) {
         throw new Error(
-            `MongoDB connection failed: ${error.message}. Check Atlas Network Access allows 0.0.0.0/0 for Vercel.`
+            `MongoDB connection failed: ${error.message}. Verify Atlas Network Access has 0.0.0.0/0 and MONGODB_URI on Vercel matches Atlas (URL-encode special characters in password).`
         );
     }
 
