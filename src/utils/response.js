@@ -1,5 +1,6 @@
 const SUCCESS_STATUS = 201;
 const ERROR_STATUS = 500;
+const GENERIC_ERROR_MESSAGE = "Something went wrong";
 
 const sendSuccess = (res, data, totalCount) => {
     const result = {};
@@ -17,13 +18,15 @@ const sendSuccess = (res, data, totalCount) => {
     });
 };
 
-const sendError = (res, message) =>
+const sendError = (res, errorDetail) =>
     res.status(ERROR_STATUS).json({
         success: 0,
-        message: message || "Internal server error",
+        message: GENERIC_ERROR_MESSAGE,
+        error: errorDetail || GENERIC_ERROR_MESSAGE,
     });
 
 module.exports = {
     sendSuccess,
     sendError,
+    GENERIC_ERROR_MESSAGE,
 };
