@@ -261,7 +261,7 @@ const createDocument = async (req, res, next) => {
             req.org_id
         );
 
-        return sendSuccess(res, document);
+        return sendSuccess(res, [document], 1);
     } catch (error) {
         next(error);
     }

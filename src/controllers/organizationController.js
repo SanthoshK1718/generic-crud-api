@@ -58,7 +58,7 @@ const createOrganization = async (req, res, next) => {
             name.trim()
         );
 
-        return sendSuccess(res, document);
+        return sendSuccess(res, [document], 1);
     } catch (error) {
         next(error);
     }
