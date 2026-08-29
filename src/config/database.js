@@ -12,9 +12,18 @@ const connectDatabase = async () => {
         throw new Error("MONGODB_URI is not defined");
     }
 
-    client = new MongoClient(process.env.MONGODB_URI);
+    client = new MongoClient(process.env.MONGODB_URI, {
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
+    });
 
-    await client.connect();
+    try {
+        await client.connect();
+    } catch (error) {
+        throw new Error(
+            `MongoDB connection failed: ${error.message}. Check Atlas Network Access allows 0.0.0.0/0 for Vercel.`
+        );
+    }
 
     database = client.db(process.env.MONGODB_DATABASE);
 
