@@ -7,6 +7,7 @@ const cors = require("cors");
 
 const { connectDatabase } = require("./config/database");
 const organizationRoutes = require("./routes/organizationRoutes");
+const loginRoutes = require("./routes/loginRoutes");
 const crudRoutes = require("./routes/crudRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const parseJsonBody = require("./middleware/parseJsonBody");
@@ -42,6 +43,7 @@ app.use(async (req, res, next) => {
 });
 
 app.use("/organization", organizationRoutes);
+app.use("/", loginRoutes);
 app.use("/", crudRoutes);
 
 app.use((req, res) => {
@@ -54,7 +56,7 @@ app.use((req, res) => {
 
     sendError(
         res,
-        `Route not found: ${req.method} ${req.originalUrl}. Use /{collection}/create|getall|update|delete`
+        `Route not found: ${req.method} ${req.originalUrl}. Use /login or /{collection}/create|getall|update|delete`
     );
 });
 

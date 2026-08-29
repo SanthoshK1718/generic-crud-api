@@ -2,6 +2,7 @@ const { ObjectId } = require("mongodb");
 const { getDatabase, collectionExists } = require("../config/database");
 const { isBlockedCollection } = require("./orgService");
 const { getNextDocId } = require("./idService");
+const { encryptPassword } = require("../utils/password");
 
 const validateCollectionName = (collectionName) => {
     if (!/^[a-zA-Z0-9_-]+$/.test(collectionName)) {
@@ -62,6 +63,17 @@ const resolveBoolean = (value, defaultValue) => {
     return Boolean(value);
 };
 
+const encryptPasswordIfPresent = (data) => {
+    if (
+        Object.prototype.hasOwnProperty.call(data, "password") &&
+        data.password !== undefined &&
+        data.password !== null &&
+        String(data.password) !== ""
+    ) {
+        data.password = encryptPassword(String(data.password));
+    }
+};
+
 const buildIdFilter = (id) => {
     const numericId = Number(id);
 
@@ -93,6 +105,7 @@ const buildCreateDocument = async (collection, collectionName, data, orgId) => {
     delete data.is_active;
     delete data.is_deleted;
     stripClientOrgFields(data);
+    encryptPasswordIfPresent(data);
 
     return {
         ...data,
@@ -247,6 +260,7 @@ const updateDocument = async (collectionName, find, data, orgId) => {
     delete data.is_deleted;
     delete data.find;
 
+    encryptPasswordIfPresent(data);
     data.modified_on = new Date();
 
     return collection.findOneAndUpdate(
