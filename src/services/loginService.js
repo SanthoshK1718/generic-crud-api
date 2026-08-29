@@ -45,10 +45,10 @@ const stripPassword = (user) => {
     return userWithoutPassword;
 };
 
-const login = async ({ type, orgId, email, phone, password }) => {
+const login = async ({ type, org_id, email, phone, password }) => {
     const collectionName = validateCollectionType(type);
 
-    if (orgId === undefined || orgId === null) {
+    if (org_id === undefined || org_id === null) {
         throw new Error(LOGIN_ERROR);
     }
 
@@ -69,7 +69,7 @@ const login = async ({ type, orgId, email, phone, password }) => {
 
     const filter = buildLoginFilter(email, phone);
 
-    const result = await getDocuments(collectionName, filter, orgId);
+    const result = await getDocuments(collectionName, filter, org_id);
     const users = result.data.filter((user) => {
         if (hasEmail) {
             return normalizeValue(user.email) === normalizeValue(email);

@@ -1,6 +1,6 @@
 const { ObjectId } = require("mongodb");
 const { getDatabase, collectionExists } = require("../config/database");
-const { isBlockedCollection } = require("./orgService");
+const { isBlockedCollection, buildOrgIdQuery } = require("./orgService");
 const { getNextDocId } = require("./idService");
 const { encryptPassword } = require("../utils/password");
 
@@ -96,9 +96,9 @@ const buildIdFilter = (id) => {
     };
 };
 
-const buildCreateDocument = async (collection, collectionName, data, orgId) => {
+const buildCreateDocument = async (collection, collectionName, data, org_id) => {
     const now = new Date();
-    const docId = await getNextDocId(collection, collectionName, orgId);
+    const docId = await getNextDocId(collection, collectionName, org_id);
     const is_active = resolveBoolean(data.is_active, true);
     const is_deleted = resolveBoolean(data.is_deleted, false);
 
@@ -111,7 +111,7 @@ const buildCreateDocument = async (collection, collectionName, data, orgId) => {
         ...data,
         _id: docId,
         id: docId,
-        orgId,
+        org_id,
         is_active,
         is_deleted,
         created_on: now,
@@ -123,17 +123,13 @@ const notDeletedFilter = {
     is_deleted: { $ne: true },
 };
 
-const scopedFilter = (orgId, filter = {}) => {
-    const query = {
-        ...filter,
-        ...notDeletedFilter,
-        orgId: { $in: [orgId, String(orgId)] },
-    };
+const scopedFilter = (org_id, filter = {}) => ({
+    ...filter,
+    ...notDeletedFilter,
+    ...buildOrgIdQuery(org_id),
+});
 
-    return query;
-};
-
-const buildFindFilter = (find, orgId) => {
+const buildFindFilter = (find, org_id) => {
     if (!find || typeof find !== "object" || Array.isArray(find)) {
         throw new Error("payload.find must be a JSON object");
     }
@@ -156,7 +152,7 @@ const buildFindFilter = (find, orgId) => {
     }
 
     Object.assign(query, findCopy);
-    query.orgId = { $in: [orgId, String(orgId)] };
+    Object.assign(query, buildOrgIdQuery(org_id));
 
     return query;
 };
@@ -172,15 +168,15 @@ const ensureCollectionIndexes = async (collection) => {
         }
 
         if (
-            index.name === "orgId_1_id_1" &&
+            (index.name === "orgId_1_id_1" || index.name === "org_id_1_id_1") &&
             !index.partialFilterExpression
         ) {
-            await collection.dropIndex("orgId_1_id_1");
+            await collection.dropIndex(index.name);
         }
     }
 
     await collection.createIndex(
-        { orgId: 1, id: 1 },
+        { org_id: 1, id: 1 },
         {
             unique: true,
             partialFilterExpression: { is_deleted: false },
@@ -188,18 +184,18 @@ const ensureCollectionIndexes = async (collection) => {
     );
 };
 
-const createDocument = async (collectionName, data, orgId) => {
+const createDocument = async (collectionName, data, org_id) => {
     const collection = await getCollection(collectionName);
 
-    if (orgId === undefined || orgId === null) {
-        throw new Error("orgId is required and must be an integer");
+    if (org_id === undefined || org_id === null) {
+        throw new Error("org_id is required and must be an integer");
     }
 
     const document = await buildCreateDocument(
         collection,
         collectionName,
         data,
-        orgId
+        org_id
     );
 
     await ensureCollectionIndexes(collection);
@@ -211,7 +207,7 @@ const createDocument = async (collectionName, data, orgId) => {
 const getDocuments = async (
     collectionName,
     filter = {},
-    orgId,
+    org_id,
     options = {}
 ) => {
     const collection = await getCollection(collectionName);
@@ -222,7 +218,7 @@ const getDocuments = async (
         sortingDetails = null,
     } = options;
 
-    const query = scopedFilter(orgId, filter);
+    const query = scopedFilter(org_id, filter);
     let cursor = collection.find(query);
 
     if (sorting && sortingDetails) {
@@ -245,7 +241,7 @@ const getDocuments = async (
     return { totalCount: total, data };
 };
 
-const updateDocument = async (collectionName, find, data, orgId) => {
+const updateDocument = async (collectionName, find, data, org_id) => {
     const collection = await getCollection(collectionName);
 
     delete data._id;
@@ -264,17 +260,17 @@ const updateDocument = async (collectionName, find, data, orgId) => {
     data.modified_on = new Date();
 
     return collection.findOneAndUpdate(
-        buildFindFilter(find, orgId),
+        buildFindFilter(find, org_id),
         { $set: data },
         { returnDocument: "after" }
     );
 };
 
-const deleteDocument = async (collectionName, find, orgId) => {
+const deleteDocument = async (collectionName, find, org_id) => {
     const collection = await getCollection(collectionName);
 
     const result = await collection.findOneAndUpdate(
-        buildFindFilter(find, orgId),
+        buildFindFilter(find, org_id),
         {
             $set: {
                 is_deleted: true,

@@ -12,7 +12,7 @@ const getPayload = (req) => {
 
     if (!Object.prototype.hasOwnProperty.call(req.body, "payload")) {
         return {
-            error: 'payload is required (example: { "orgId": 1, "payload": { "creation": { "name": "Shop" } } })',
+            error: 'payload is required (example: { "org_id": 1, "payload": { "creation": { "name": "Shop" } } })',
         };
     }
 
@@ -25,17 +25,17 @@ const getPayload = (req) => {
 
 const createOrganization = async (req, res, next) => {
     try {
-        const parsedOrgId = parseOrgId(req.body?.orgId ?? req.body?.org_id);
+        const parsedOrgId = parseOrgId(req.body?.org_id);
 
         if (parsedOrgId.missing) {
             return sendError(
                 res,
-                'orgId is required at root to register a shop (example: { "orgId": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })'
+                'org_id is required at root to register a shop (example: { "org_id": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })'
             );
         }
 
         if (parsedOrgId.invalid) {
-            return sendError(res, "orgId must be an integer");
+            return sendError(res, "org_id must be an integer");
         }
 
         const parsed = getPayload(req);
@@ -49,7 +49,7 @@ const createOrganization = async (req, res, next) => {
         if (!name || typeof name !== "string" || !name.trim()) {
             return sendError(
                 res,
-                'payload.creation.name is required (example: { "orgId": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })'
+                'payload.creation.name is required (example: { "org_id": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })'
             );
         }
 

@@ -9,11 +9,7 @@ const extractOrgId = (req) => {
             : {};
 
     return parseOrgId(
-        body.orgId ??
-            body.org_id ??
-            req.query.orgId ??
-            req.query.org_id ??
-            req.headers["x-org-id"]
+        body.org_id ?? req.query.org_id ?? req.headers["x-org-id"]
     );
 };
 
@@ -25,19 +21,19 @@ const requireOrg = async (req, res, next) => {
             return sendError(res, bodyError);
         }
 
-        const orgId = extractOrgId(req);
-        const orgIdError = validateOrgIdInBody(req, orgId, false);
+        const orgIdResult = extractOrgId(req);
+        const orgIdError = validateOrgIdInBody(req, orgIdResult, false);
 
         if (orgIdError) {
             return sendError(res, orgIdError);
         }
 
-        const organization = await findOrganization(orgId.value);
+        const organization = await findOrganization(orgIdResult.value);
 
         if (!organization) {
             return sendError(
                 res,
-                `No shop found with orgId ${orgId.value}. Create it first using POST /organization/create`
+                `No shop found with org_id ${orgIdResult.value}. Create it first using POST /organization/create`
             );
         }
 
@@ -46,11 +42,11 @@ const requireOrg = async (req, res, next) => {
         if (canonicalOrgId === undefined) {
             return sendError(
                 res,
-                `Shop record for orgId ${orgId.value} has invalid orgId in database`
+                `Shop record for org_id ${orgIdResult.value} has invalid org_id in database`
             );
         }
 
-        req.orgId = canonicalOrgId;
+        req.org_id = canonicalOrgId;
         next();
     } catch (error) {
         next(error);

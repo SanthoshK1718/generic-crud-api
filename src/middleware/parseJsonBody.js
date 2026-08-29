@@ -40,7 +40,7 @@ const parseJsonBody = (req, res, next) => {
     if (Object.keys(req.body).length === 0) {
         return sendError(
             res,
-            "Request body is empty. Add orgId and payload in the JSON body"
+            "Request body is empty. Add org_id and payload in the JSON body"
         );
     }
 

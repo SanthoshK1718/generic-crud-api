@@ -1,20 +1,22 @@
 const { getDatabase } = require("../config/database");
 
+const { buildOrgIdQuery } = require("./orgService");
+
 const COUNTERS_COLLECTION = "counters";
 
-const getCounterKey = (collectionName, orgId) => {
-    if (orgId === undefined || orgId === null) {
+const getCounterKey = (collectionName, org_id) => {
+    if (org_id === undefined || org_id === null) {
         return collectionName;
     }
 
-    return `${collectionName}:${orgId}`;
+    return `${collectionName}:${org_id}`;
 };
 
-const getMaxExistingDocId = async (collection, orgId) => {
+const getMaxExistingDocId = async (collection, org_id) => {
     const match =
-        orgId === undefined || orgId === null
+        org_id === undefined || org_id === null
             ? {}
-            : { orgId: { $in: [orgId, String(orgId)] } };
+            : buildOrgIdQuery(org_id);
 
     const [lastDoc] = await collection
         .find(match)
@@ -27,15 +29,15 @@ const getMaxExistingDocId = async (collection, orgId) => {
     return Number.isInteger(maxId) && maxId > 0 ? maxId : 0;
 };
 
-const getNextDocId = async (collection, collectionName, orgId) => {
+const getNextDocId = async (collection, collectionName, org_id) => {
     const db = getDatabase();
     const counters = db.collection(COUNTERS_COLLECTION);
-    const counterKey = getCounterKey(collectionName, orgId);
+    const counterKey = getCounterKey(collectionName, org_id);
 
     const existingCounter = await counters.findOne({ _id: counterKey });
 
     if (!existingCounter) {
-        const maxId = await getMaxExistingDocId(collection, orgId);
+        const maxId = await getMaxExistingDocId(collection, org_id);
 
         await counters.updateOne(
             { _id: counterKey },
@@ -43,7 +45,7 @@ const getNextDocId = async (collection, collectionName, orgId) => {
             { upsert: true }
         );
     } else {
-        const maxId = await getMaxExistingDocId(collection, orgId);
+        const maxId = await getMaxExistingDocId(collection, org_id);
 
         await counters.updateOne(
             { _id: counterKey },

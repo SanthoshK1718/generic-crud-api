@@ -57,8 +57,18 @@ const parseOrgId = (value) => {
     return { invalid: true };
 };
 
-const findOrganization = async (orgId) => {
-    const parsed = parseOrgId(orgId);
+const buildOrgIdQuery = (org_id) => ({
+    $or: [
+        { org_id: { $in: [org_id, String(org_id)] } },
+        { orgId: { $in: [org_id, String(org_id)] } },
+    ],
+});
+
+const getOrgIdFromDocument = (document) =>
+    document?.org_id ?? document?.orgId;
+
+const findOrganization = async (org_id) => {
+    const parsed = parseOrgId(org_id);
 
     if (!parsed.value && parsed.value !== 0) {
         return null;
@@ -69,13 +79,13 @@ const findOrganization = async (orgId) => {
     }
 
     return getOrganizationCollection().findOne({
-        $or: [{ orgId: parsed.value }, { orgId: String(parsed.value) }],
+        ...buildOrgIdQuery(parsed.value),
         is_deleted: { $ne: true },
     });
 };
 
 const getCanonicalOrgId = (organization) => {
-    const parsed = parseOrgId(organization.orgId);
+    const parsed = parseOrgId(getOrgIdFromDocument(organization));
 
     return parsed.value;
 };
@@ -88,6 +98,8 @@ module.exports = {
     isBlockedCollection,
     getOrganizationCollection,
     parseOrgId,
+    buildOrgIdQuery,
+    getOrgIdFromDocument,
     findOrganization,
     getCanonicalOrgId,
 };

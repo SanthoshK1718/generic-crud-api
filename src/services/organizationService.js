@@ -18,7 +18,16 @@ const ensureOrganizationCollection = async () => {
         );
     }
 
-    return getOrganizationCollection();
+    const collection = getOrganizationCollection();
+    const indexes = await collection.indexes();
+
+    for (const index of indexes) {
+        if (index.name === "orgId_1") {
+            await collection.dropIndex("orgId_1");
+        }
+    }
+
+    return collection;
 };
 
 const buildIdFilter = (id) => {
@@ -61,10 +70,15 @@ const buildFindFilter = (find = {}) => {
         delete findCopy.id;
     }
 
-    if (findCopy.orgId !== undefined) {
-        query.orgId = {
-            $in: [Number(findCopy.orgId), String(findCopy.orgId)],
-        };
+    if (findCopy.org_id !== undefined || findCopy.orgId !== undefined) {
+        const orgValue = findCopy.org_id ?? findCopy.orgId;
+        Object.assign(query, {
+            $or: [
+                { org_id: { $in: [Number(orgValue), String(orgValue)] } },
+                { orgId: { $in: [Number(orgValue), String(orgValue)] } },
+            ],
+        });
+        delete findCopy.org_id;
         delete findCopy.orgId;
     }
 
@@ -73,13 +87,13 @@ const buildFindFilter = (find = {}) => {
     return query;
 };
 
-const createOrganization = async (orgId, name) => {
+const createOrganization = async (org_id, name) => {
     const collection = await ensureOrganizationCollection();
-    const existing = await findOrganization(orgId);
+    const existing = await findOrganization(org_id);
 
     if (existing) {
         throw new Error(
-            `Shop with orgId ${orgId} already exists. Use a different orgId`
+            `Shop with org_id ${org_id} already exists. Use a different org_id`
         );
     }
 
@@ -89,7 +103,7 @@ const createOrganization = async (orgId, name) => {
     const document = {
         _id: docId,
         id: docId,
-        orgId,
+        org_id,
         name,
         is_active: true,
         is_deleted: false,
@@ -97,7 +111,7 @@ const createOrganization = async (orgId, name) => {
         modified_on: now,
     };
 
-    await collection.createIndex({ orgId: 1 }, { unique: true });
+    await collection.createIndex({ org_id: 1 }, { unique: true });
     await collection.createIndex({ id: 1 }, { unique: true });
     await collection.insertOne(document);
 
@@ -141,6 +155,7 @@ const updateOrganization = async (find, data) => {
 
     delete data._id;
     delete data.id;
+    delete data.org_id;
     delete data.orgId;
     delete data.created_on;
     delete data.is_active;

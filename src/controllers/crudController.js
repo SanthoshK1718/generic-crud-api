@@ -49,13 +49,13 @@ const stripSystemFields = (data) => {
 const getBodyPayload = (req) => {
     if (!isJsonObject(req.body)) {
         return {
-            error: "Request body must be a JSON object with orgId and payload",
+            error: "Request body must be a JSON object with org_id and payload",
         };
     }
 
     if (!Object.prototype.hasOwnProperty.call(req.body, "payload")) {
         return {
-            error: 'payload is required under orgId (example: { "orgId": 1, "payload": { ... } })',
+            error: 'payload is required under org_id (example: { "org_id": 1, "payload": { ... } })',
         };
     }
 
@@ -79,7 +79,7 @@ const getCreatePayload = (req) => {
 
     if (!isJsonObject(parsed.payload.creation)) {
         return {
-            error: 'payload.creation is required (example: { "orgId": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })',
+            error: 'payload.creation is required (example: { "org_id": 1, "payload": { "creation": { "name": "Ice Cream Shop" } } })',
         };
     }
 
@@ -160,7 +160,7 @@ const getReadPayload = (req) => {
 
     if (!isJsonObject(req.body.payload)) {
         return {
-            error: 'payload is required (example: { "orgId": 1, "payload": { "find": {} } })',
+            error: 'payload is required (example: { "org_id": 1, "payload": { "find": {} } })',
         };
     }
 
@@ -258,7 +258,7 @@ const createDocument = async (req, res, next) => {
         const document = await crudService.createDocument(
             collection,
             parsed.data,
-            req.orgId
+            req.org_id
         );
 
         return sendSuccess(res, document);
@@ -279,7 +279,7 @@ const getDocuments = async (req, res, next) => {
         const result = await crudService.getDocuments(
             collection,
             parsed.filters,
-            req.orgId,
+            req.org_id,
             {
                 pagination: parsed.pagination,
                 paginationDetails: parsed.paginationDetails,
@@ -307,7 +307,7 @@ const updateDocument = async (req, res, next) => {
             collection,
             parsed.find,
             parsed.data,
-            req.orgId
+            req.org_id
         );
 
         if (!document) {
@@ -332,7 +332,7 @@ const deleteDocument = async (req, res, next) => {
         const deleted = await crudService.deleteDocument(
             collection,
             parsed.find,
-            req.orgId
+            req.org_id
         );
 
         if (!deleted) {

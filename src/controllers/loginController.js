@@ -13,7 +13,7 @@ const loginUser = async (req, res, next) => {
             return sendError(res, LOGIN_ERROR);
         }
 
-        const orgIdResult = parseOrgId(req.body.orgId);
+        const orgIdResult = parseOrgId(req.body.org_id);
 
         if (orgIdResult.missing || orgIdResult.invalid) {
             return sendError(res, LOGIN_ERROR);
@@ -25,15 +25,15 @@ const loginUser = async (req, res, next) => {
             return sendError(res, LOGIN_ERROR);
         }
 
-        const orgId = getCanonicalOrgId(organization);
+        const org_id = getCanonicalOrgId(organization);
 
-        if (orgId === undefined) {
+        if (org_id === undefined) {
             return sendError(res, LOGIN_ERROR);
         }
 
         const user = await login({
             type: req.body.type,
-            orgId,
+            org_id,
             email: req.body.email,
             phone: req.body.phone,
             password: req.body.password,
