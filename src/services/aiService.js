@@ -1,11 +1,11 @@
 const GEMINI_API_BASE =
     "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SYSTEM_INSTRUCTION =
-    "You are a helpful assistant. Always reply in 1 or 2 short lines only. " +
-    "Be sharp, direct, and concise. Do not use bullet points, lists, or long explanations.";
+const CONCISE_SUFFIX = "reply concisely in 2 lines.";
+const LONG_MESSAGE_MIN_LENGTH = 10;
 
-const getGeminiConfig = () => {    const apiKey = process.env.GEMINI_API_KEY;
+const getGeminiConfig = () => {
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY is not configured");
@@ -15,6 +15,16 @@ const getGeminiConfig = () => {    const apiKey = process.env.GEMINI_API_KEY;
         apiKey,
         model: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
     };
+};
+
+const buildPrompt = (message) => {
+    const trimmed = String(message).trim();
+
+    if (trimmed.length > LONG_MESSAGE_MIN_LENGTH) {
+        return `${trimmed} ${CONCISE_SUFFIX}`;
+    }
+
+    return trimmed;
 };
 
 const extractReplyText = (payload) => {
@@ -40,6 +50,7 @@ const extractReplyText = (payload) => {
 const generateReply = async (message) => {
     const { apiKey, model } = getGeminiConfig();
     const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
+    const prompt = buildPrompt(message);
 
     const response = await fetch(url, {
         method: "POST",
@@ -47,19 +58,17 @@ const generateReply = async (message) => {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            systemInstruction: {
-                parts: [{ text: SYSTEM_INSTRUCTION }],
-            },
             contents: [
                 {
-                    parts: [{ text: message }],
+                    parts: [{ text: prompt }],
                 },
             ],
             generationConfig: {
                 maxOutputTokens: 100,
                 temperature: 0.4,
             },
-        }),    });
+        }),
+    });
 
     const payload = await response.json();
 
