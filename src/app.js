@@ -4,7 +4,7 @@ if (!process.env.VERCEL) {
 
 const express = require("express");
 const cors = require("cors");
-
+const path = require("path");
 const { connectDatabase } = require("./config/database");
 const organizationRoutes = require("./routes/organizationRoutes");
 const loginRoutes = require("./routes/loginRoutes");
@@ -35,6 +35,9 @@ app.get("/health", (req, res) => {
     });
 });
 
+app.get("/chat", (req, res) => {
+    res.sendFile(path.join(__dirname, "../public/chat.html"));
+});
 app.use("/", aiRoutes);
 
 app.use(async (req, res, next) => {
@@ -60,7 +63,7 @@ app.use((req, res) => {
 
     sendError(
         res,
-        `Route not found: ${req.method} ${req.originalUrl}. Use /ai/reply, /login, or /{collection}/create|getall|update|delete`
+        `Route not found: ${req.method} ${req.originalUrl}. Use /chat, /ai/reply, /login, or /{collection}/create|getall|update|delete`
     );
 });
 
