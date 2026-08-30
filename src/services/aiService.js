@@ -1,7 +1,8 @@
 const GEMINI_API_BASE =
     "https://generativelanguage.googleapis.com/v1beta/models";
 
-const CONCISE_SUFFIX = "reply concisely in 1 line";
+const CONCISE_SUFFIX =
+    "Answer in one short sentence only. No lists, no bullets, no options.";
 const LONG_MESSAGE_MIN_LENGTH = 10;
 
 const getGeminiConfig = () => {
@@ -27,6 +28,36 @@ const buildPrompt = (message) => {
     return trimmed;
 };
 
+const toSingleLineReply = (text) => {
+    const lines = text
+        .split("\n")
+        .map((line) =>
+            line
+                .replace(/^[\s*\-•\d.)]+/, "")
+                .replace(/^\*\*[^*]+\*\*:?\s*/i, "")
+                .trim()
+        )
+        .filter((line) => line.length > 0);
+
+    const contentLine =
+        lines.find(
+            (line) =>
+                !/^here are/i.test(line) &&
+                !/depending on/i.test(line) &&
+                line.length > 8
+        ) || lines[0];
+
+    if (!contentLine) {
+        return text.replace(/\s+/g, " ").trim();
+    }
+
+    const unquoted = contentLine.replace(/^["']|["']$/g, "").trim();
+    const firstSentence =
+        unquoted.match(/^[^.!?]+[.!?]/)?.[0]?.trim() || unquoted;
+
+    return firstSentence.replace(/\s+/g, " ").trim();
+};
+
 const extractReplyText = (payload) => {
     const parts = payload?.candidates?.[0]?.content?.parts;
 
@@ -44,7 +75,7 @@ const extractReplyText = (payload) => {
         throw new Error("Gemini returned an empty response");
     }
 
-    return text;
+    return toSingleLineReply(text);
 };
 
 const generateReply = async (message) => {
@@ -64,8 +95,8 @@ const generateReply = async (message) => {
                 },
             ],
             generationConfig: {
-                maxOutputTokens: 100,
-                temperature: 0.4,
+                maxOutputTokens: 60,
+                temperature: 0.3,
             },
         }),
     });
