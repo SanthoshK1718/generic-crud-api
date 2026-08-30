@@ -29,12 +29,19 @@ const buildPrompt = (message) => {
 };
 
 const toSingleLineReply = (text) => {
+    const quotedMatch = text.match(/["“]([^"”\n]{8,}?)["”]/);
+
+    if (quotedMatch?.[1]) {
+        return quotedMatch[1].replace(/\s+/g, " ").trim();
+    }
+
     const lines = text
         .split("\n")
         .map((line) =>
             line
                 .replace(/^[\s*\-•\d.)]+/, "")
                 .replace(/^\*\*[^*]+\*\*:?\s*/i, "")
+                .replace(/^[^:]+:\s*/, "")
                 .trim()
         )
         .filter((line) => line.length > 0);
@@ -44,20 +51,20 @@ const toSingleLineReply = (text) => {
             (line) =>
                 !/^here are/i.test(line) &&
                 !/depending on/i.test(line) &&
+                !/options/i.test(line) &&
                 line.length > 8
-        ) || lines[0];
+        ) || lines[lines.length - 1];
 
     if (!contentLine) {
         return text.replace(/\s+/g, " ").trim();
     }
 
-    const unquoted = contentLine.replace(/^["']|["']$/g, "").trim();
+    const unquoted = contentLine.replace(/^["'“]|["'”]$/g, "").trim();
     const firstSentence =
         unquoted.match(/^[^.!?]+[.!?]/)?.[0]?.trim() || unquoted;
 
     return firstSentence.replace(/\s+/g, " ").trim();
 };
-
 const extractReplyText = (payload) => {
     const parts = payload?.candidates?.[0]?.content?.parts;
 
