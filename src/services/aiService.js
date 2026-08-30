@@ -1,8 +1,11 @@
 const GEMINI_API_BASE =
     "https://generativelanguage.googleapis.com/v1beta/models";
 
-const getGeminiConfig = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
+const SYSTEM_INSTRUCTION =
+    "You are a helpful assistant. Always reply in 1 or 2 short lines only. " +
+    "Be sharp, direct, and concise. Do not use bullet points, lists, or long explanations.";
+
+const getGeminiConfig = () => {    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY is not configured");
@@ -44,13 +47,19 @@ const generateReply = async (message) => {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
+            systemInstruction: {
+                parts: [{ text: SYSTEM_INSTRUCTION }],
+            },
             contents: [
                 {
                     parts: [{ text: message }],
                 },
             ],
-        }),
-    });
+            generationConfig: {
+                maxOutputTokens: 100,
+                temperature: 0.4,
+            },
+        }),    });
 
     const payload = await response.json();
 
