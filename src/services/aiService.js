@@ -17,8 +17,6 @@ const getGeminiConfig = () => {
     };
 };
 
-const MAX_CONTEXT_MESSAGES = 20;
-
 const buildPrompt = (message) => {
     const trimmed = String(message).trim();
 
@@ -27,23 +25,6 @@ const buildPrompt = (message) => {
     }
 
     return trimmed;
-};
-
-const toGeminiRole = (role) => (role === "ai" ? "model" : "user");
-
-const buildContents = (context, message) => {
-    const history = Array.isArray(context) ? context.slice(-MAX_CONTEXT_MESSAGES) : [];
-    const contents = history.map((entry) => ({
-        role: toGeminiRole(entry.role),
-        parts: [{ text: String(entry.text).trim() }],
-    }));
-
-    contents.push({
-        role: "user",
-        parts: [{ text: buildPrompt(message) }],
-    });
-
-    return contents;
 };
 
 const toSingleLineReply = (text) => {
@@ -103,10 +84,10 @@ const extractReplyText = (payload) => {
     return toSingleLineReply(text);
 };
 
-const generateReply = async (message, context = []) => {
+const generateReply = async (message) => {
     const { apiKey, model } = getGeminiConfig();
     const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
-    const contents = buildContents(context, message);
+    const prompt = buildPrompt(message);
 
     const response = await fetch(url, {
         method: "POST",
@@ -114,7 +95,11 @@ const generateReply = async (message, context = []) => {
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            contents,
+            contents: [
+                {
+                    parts: [{ text: prompt }],
+                },
+            ],
             generationConfig: {
                 maxOutputTokens: 60,
                 temperature: 0.3,

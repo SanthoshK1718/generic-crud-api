@@ -25,39 +25,6 @@ const getMessageFromBody = (body) => {
     return { message: value.trim() };
 };
 
-const getContextFromBody = (body) => {
-    if (body.context === undefined || body.context === null) {
-        return { context: [] };
-    }
-
-    if (!Array.isArray(body.context)) {
-        return { error: "context must be an array of { role, text } objects" };
-    }
-
-    const context = [];
-
-    for (const entry of body.context) {
-        if (!entry || typeof entry !== "object") {
-            return { error: "each context item must be an object with role and text" };
-        }
-
-        const role = entry.role;
-        const text = entry.text;
-
-        if (role !== "user" && role !== "ai") {
-            return { error: 'context role must be "user" or "ai"' };
-        }
-
-        if (typeof text !== "string" || !text.trim()) {
-            return { error: "context text must be a non-empty string" };
-        }
-
-        context.push({ role, text: text.trim() });
-    }
-
-    return { context };
-};
-
 const reply = async (req, res, next) => {
     try {
         if (!isJsonObject(req.body)) {
@@ -73,12 +40,6 @@ const reply = async (req, res, next) => {
             return sendError(res, parsed.error);
         }
 
-        const contextParsed = getContextFromBody(req.body);
-
-        if (contextParsed.error) {
-            return sendError(res, contextParsed.error);
-        }
-
         if (containsBlockedContent(parsed.message)) {
             const clientIp = getClientIp(req);
             return sendSuccess(res, {
@@ -86,10 +47,7 @@ const reply = async (req, res, next) => {
             });
         }
 
-        const replyText = await generateReply(
-            parsed.message,
-            contextParsed.context
-        );
+        const replyText = await generateReply(parsed.message);
 
         return sendSuccess(res, { reply: replyText });
     } catch (error) {

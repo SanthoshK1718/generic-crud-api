@@ -148,7 +148,6 @@
         const composerEl = document.getElementById("composer");
         const messageInputEl = document.getElementById("messageInput");
         const sendButtonEl = document.getElementById("sendButton");
-        const conversationContext = [];
 
         const addMessage = (text, type) => {
             const emptyState = messagesEl.querySelector(".empty");
@@ -175,32 +174,19 @@
             messageInputEl.value = "";
             sendButtonEl.disabled = true;
 
-            const requestContext = conversationContext.map((entry) => ({
-                role: entry.role,
-                text: entry.text,
-            }));
-
             try {
                 const response = await fetch("/ai/reply", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                        message,
-                        context: requestContext,
-                    }),
+                    body: JSON.stringify({ message }),
                 });
 
                 const data = await response.json();
 
                 if (data.success === 1 && data.result?.data?.reply) {
-                    const reply = data.result.data.reply;
-                    conversationContext.push(
-                        { role: "user", text: message },
-                        { role: "ai", text: reply }
-                    );
-                    addMessage(reply, "ai");
+                    addMessage(data.result.data.reply, "ai");
                 } else {
                     addMessage(data.error || "Something went wrong", "error");
                 }
