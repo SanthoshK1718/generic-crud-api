@@ -1,6 +1,10 @@
 const { generateReply } = require("../services/aiService");
 const { sendSuccess, sendError } = require("../utils/response");
 const { isJsonObject } = require("../utils/requestValidation");
+const {
+    BLOCKED_CONTENT_ERROR,
+    containsBlockedContent,
+} = require("../utils/contentFilter");
 
 const getMessageFromBody = (body) => {
     const value = body.message ?? body.text ?? body.prompt;
@@ -33,6 +37,10 @@ const reply = async (req, res, next) => {
 
         if (parsed.error) {
             return sendError(res, parsed.error);
+        }
+
+        if (containsBlockedContent(parsed.message)) {
+            return sendError(res, BLOCKED_CONTENT_ERROR);
         }
 
         const replyText = await generateReply(parsed.message);
