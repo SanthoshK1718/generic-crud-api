@@ -1,7 +1,7 @@
 const GEMINI_API_BASE =
     "https://generativelanguage.googleapis.com/v1beta/models";
 
-const CONCISE_SUFFIX = "reply concisely in 1 line only.";
+const CONCISE_SUFFIX = "only";
 const LONG_MESSAGE_MIN_LENGTH = 10;
 
 const getGeminiConfig = () => {
