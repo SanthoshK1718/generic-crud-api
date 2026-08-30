@@ -10,7 +10,7 @@ const getGeminiConfig = () => {
 
     return {
         apiKey,
-        model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash",
     };
 };
 
