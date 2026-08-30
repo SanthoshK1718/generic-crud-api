@@ -16,6 +16,7 @@ const BLOCKED_TERMS = [
     "send nudes",
     "send nude",
     "nude pic",
+    "xnxx",
     "nude photo",
     "child porn",
     "childporn",

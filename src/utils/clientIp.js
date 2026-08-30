@@ -20,7 +20,7 @@ const getClientIp = (req) => {
     return "unknown";
 };
 
-const buildBlockedContentReply = (ip) => `your ip is ${ip}`;
+const buildBlockedContentReply = (ip) => `Is this your IP address? ${ip} :)`;
 
 module.exports = {
     getClientIp,
