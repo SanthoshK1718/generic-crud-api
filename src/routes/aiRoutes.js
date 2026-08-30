@@ -1,8 +1,9 @@
 const express = require("express");
-const { reply } = require("../controllers/aiController");
+const { chat, chatWithHistory } = require("../controllers/aiController");
 
 const router = express.Router();
 
-router.post("/ai/reply", reply);
+router.post("/ai/chat", chat);
+router.post("/ai/chatwithhistory", chatWithHistory);
 
 module.exports = router;

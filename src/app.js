@@ -35,8 +35,16 @@ app.get("/health", (req, res) => {
     });
 });
 
-app.get("/chat", (req, res) => {
+app.get("/ai/chat", (req, res) => {
     res.sendFile(path.join(__dirname, "../public/chat.html"));
+});
+
+app.get("/ai/chatwithhistory", (req, res) => {
+    res.sendFile(path.join(__dirname, "../public/chatwithhistory.html"));
+});
+
+app.get("/chat", (req, res) => {
+    res.redirect(301, "/ai/chat");
 });
 app.use("/", aiRoutes);
 
@@ -63,7 +71,7 @@ app.use((req, res) => {
 
     sendError(
         res,
-        `Route not found: ${req.method} ${req.originalUrl}. Use /chat, /ai/reply, /login, or /{collection}/create|getall|update|delete`
+        `Route not found: ${req.method} ${req.originalUrl}. Use /ai/chat, /ai/chatwithhistory, /login, or /{collection}/create|getall|update|delete`
     );
 });
 

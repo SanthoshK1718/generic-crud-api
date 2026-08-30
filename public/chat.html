@@ -175,7 +175,7 @@
             sendButtonEl.disabled = true;
 
             try {
-                const response = await fetch("/ai/reply", {
+                const response = await fetch("/ai/chat", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

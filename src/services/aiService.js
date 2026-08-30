@@ -4,7 +4,7 @@ const GEMINI_API_BASE =
 const CONCISE_SUFFIX = "reply concisely in 1 line";
 const LONG_MESSAGE_MIN_LENGTH = 10;
 
-const getGeminiConfig = () => {
+const getGeminiConfig = (modelOverride) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -13,9 +13,14 @@ const getGeminiConfig = () => {
 
     return {
         apiKey,
-        model: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
+        model:
+            modelOverride ||
+            process.env.GEMINI_MODEL ||
+            "gemini-3.1-flash-lite",
     };
 };
+
+const MAX_CONTEXT_MESSAGES = 20;
 
 const buildPrompt = (message) => {
     const trimmed = String(message).trim();
@@ -25,6 +30,56 @@ const buildPrompt = (message) => {
     }
 
     return trimmed;
+};
+
+const toGeminiRole = (role) => (role === "ai" ? "model" : "user");
+
+const buildContents = (context, message) => {
+    const history = Array.isArray(context)
+        ? context.slice(-MAX_CONTEXT_MESSAGES)
+        : [];
+    const contents = history.map((entry) => ({
+        role: toGeminiRole(entry.role),
+        parts: [{ text: String(entry.text).trim() }],
+    }));
+
+    contents.push({
+        role: "user",
+        parts: [{ text: buildPrompt(message) }],
+    });
+
+    return contents;
+};
+
+const callGemini = async (contents, modelOverride) => {
+    const { apiKey, model } = getGeminiConfig(modelOverride);
+    const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            contents,
+            generationConfig: {
+                maxOutputTokens: 60,
+                temperature: 0.3,
+            },
+        }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+        const apiError =
+            payload?.error?.message ||
+            `Gemini request failed with status ${response.status}`;
+
+        throw new Error(apiError);
+    }
+
+    return extractReplyText(payload);
 };
 
 const toSingleLineReply = (text) => {
@@ -85,41 +140,24 @@ const extractReplyText = (payload) => {
 };
 
 const generateReply = async (message) => {
-    const { apiKey, model } = getGeminiConfig();
-    const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
-    const prompt = buildPrompt(message);
-
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            contents: [
-                {
-                    parts: [{ text: prompt }],
-                },
-            ],
-            generationConfig: {
-                maxOutputTokens: 60,
-                temperature: 0.3,
+    return callGemini(
+        [
+            {
+                parts: [{ text: buildPrompt(message) }],
             },
-        }),
-    });
+        ],
+        process.env.GEMINI_MODEL
+    );
+};
 
-    const payload = await response.json();
+const generateReplyWithHistory = async (message, context = []) => {
+    const model =
+        process.env.GEMINI_MODEL_WITH_HISTORY || process.env.GEMINI_MODEL;
 
-    if (!response.ok) {
-        const apiError =
-            payload?.error?.message ||
-            `Gemini request failed with status ${response.status}`;
-
-        throw new Error(apiError);
-    }
-
-    return extractReplyText(payload);
+    return callGemini(buildContents(context, message), model);
 };
 
 module.exports = {
     generateReply,
+    generateReplyWithHistory,
 };
