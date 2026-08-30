@@ -8,6 +8,7 @@ const cors = require("cors");
 const { connectDatabase } = require("./config/database");
 const organizationRoutes = require("./routes/organizationRoutes");
 const loginRoutes = require("./routes/loginRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 const crudRoutes = require("./routes/crudRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const parseJsonBody = require("./middleware/parseJsonBody");
@@ -30,8 +31,11 @@ app.get("/health", (req, res) => {
         message: "API is healthy",
         mongoConfigured: Boolean(process.env.MONGODB_URI),
         databaseConfigured: Boolean(process.env.MONGODB_DATABASE),
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     });
 });
+
+app.use("/", aiRoutes);
 
 app.use(async (req, res, next) => {
     try {
@@ -56,7 +60,7 @@ app.use((req, res) => {
 
     sendError(
         res,
-        `Route not found: ${req.method} ${req.originalUrl}. Use /login or /{collection}/create|getall|update|delete`
+        `Route not found: ${req.method} ${req.originalUrl}. Use /ai/reply, /login, or /{collection}/create|getall|update|delete`
     );
 });
 
