@@ -263,7 +263,10 @@
         let socket = null;
         let pollTimer = null;
         let transportMode = "websocket";
-        let apiBase = window.location.origin;
+        const apiBase = window.location.origin;
+        const useHttpTransport =
+            window.location.hostname.endsWith(".vercel.app") ||
+            params.get("mode") === "http";
 
         const buildChatUrl = (nextSessionId = sessionId) =>
             `${apiBase}/session-chat?sessionId=${encodeURIComponent(nextSessionId)}&roomId=${encodeURIComponent(roomId)}`;
@@ -381,10 +384,35 @@
             pollTimer = setInterval(async () => {
                 try {
                     await loadHistory(true);
+                    setConnected(true);
                 } catch {
                     setConnected(true, "Reconnecting...");
                 }
             }, 2500);
+        };
+
+        const startHttpMode = async () => {
+            transportMode = "http";
+            shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
+
+            try {
+                await loadHistory();
+            } catch (error) {
+                appendMessage({
+                    sessionId,
+                    message: `Could not load saved messages: ${error.message}`,
+                    timestamp: new Date().toISOString(),
+                    system: true,
+                });
+            }
+
+            startHttpPolling();
+            appendMessage({
+                sessionId,
+                message: "Connected (live sync)",
+                timestamp: new Date().toISOString(),
+                system: true,
+            });
         };
 
         const connectWebSocket = () => {
@@ -442,33 +470,40 @@
         };
 
         const initChat = async () => {
+            shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
+
+            if (useHttpTransport) {
+                await startHttpMode();
+                return;
+            }
+
             try {
-                const configResponse = await fetch(`${window.location.origin}/ws/chat/config`);
+                const configResponse = await fetch(`${apiBase}/ws/chat/config`);
                 const configBody = await configResponse.json();
 
                 if (configResponse.ok && configBody.success === 1) {
                     const config = configBody.result?.data || {};
-                    apiBase = config.baseUrl || window.location.origin;
-                    shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
 
                     if (config.mode === "http") {
-                        await loadHistory();
-                        startHttpPolling();
-                        appendMessage({
-                            sessionId,
-                            message: "Connected via Vercel (HTTP live sync)",
-                            timestamp: new Date().toISOString(),
-                            system: true,
-                        });
+                        await startHttpMode();
                         return;
                     }
                 }
             } catch {
-                apiBase = window.location.origin;
-                shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
+                // Fall back to WebSocket below.
             }
 
-            await loadHistory();
+            try {
+                await loadHistory();
+            } catch (error) {
+                appendMessage({
+                    sessionId,
+                    message: `Could not load saved messages: ${error.message}`,
+                    timestamp: new Date().toISOString(),
+                    system: true,
+                });
+            }
+
             connectWebSocket();
         };
 

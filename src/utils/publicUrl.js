@@ -5,13 +5,17 @@ const getPublicBaseUrl = (req) => {
         return process.env.PUBLIC_APP_URL.replace(/\/$/, "");
     }
 
-    if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`;
+    if (req) {
+        const host = req.get("x-forwarded-host") || req.get("host");
+        const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+
+        if (host) {
+            return `${protocol}://${host}`;
+        }
     }
 
-    if (req) {
-        const protocol = req.get("x-forwarded-proto") || req.protocol;
-        return `${protocol}://${req.get("host")}`;
+    if (process.env.VERCEL_URL) {
+        return `https://${process.env.VERCEL_URL}`;
     }
 
     return DEFAULT_PUBLIC_URL;
