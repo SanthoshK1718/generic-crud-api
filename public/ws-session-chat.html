@@ -297,9 +297,6 @@
         const nameStorageKey = `chat-name:${roomId}`;
         const apiBase = window.location.origin;
         const roomUrl = `${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
-        const useHttpTransport =
-            window.location.hostname.endsWith(".vercel.app") ||
-            params.get("mode") === "http";
 
         if (params.has("sessionId")) {
             params.delete("sessionId");
@@ -324,8 +321,6 @@
 
         let sessionId = "";
         let socket = null;
-        let pollTimer = null;
-        let transportMode = "http";
         let lastMessageId = 0;
         const renderedMessageIds = new Set();
         const memberSet = new Set();
@@ -410,15 +405,11 @@
             messagesEl.scrollTop = messagesEl.scrollHeight;
         };
 
-        const loadHistory = async (onlyNew = false) => {
+        const loadHistory = async () => {
             const query = new URLSearchParams({
                 roomId,
-                limit: onlyNew ? "50" : "200",
+                limit: "200",
             });
-
-            if (onlyNew && lastMessageId > 0) {
-                query.set("afterId", String(lastMessageId));
-            }
 
             const response = await fetch(`${apiBase}/ws/chat/messages?${query.toString()}`);
             const body = await response.json();
@@ -430,50 +421,20 @@
             const messages = body.result?.data || [];
             messages.forEach((item) => appendMessage(item));
 
-            if (!onlyNew && !messages.length && !messagesEl.querySelector(".message")) {
+            if (!messages.length && !messagesEl.querySelector(".message")) {
                 messagesEl.appendChild(emptyState);
             }
 
             return messages;
         };
 
-        const sendMessage = async (message) => {
-            const response = await fetch(`${apiBase}/ws/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sessionId, roomId, message }),
-            });
-            const body = await response.json();
-
-            if (!response.ok || body.success !== 1) {
-                throw new Error(body.error || "Failed to send message");
-            }
-
-            const payload = body.result?.data?.payload;
-            if (payload) {
-                appendMessage(payload);
-            }
-        };
-
-        const startHttpPolling = () => {
-            transportMode = "http";
-            if (pollTimer) {
-                clearInterval(pollTimer);
-            }
-
-            pollTimer = setInterval(async () => {
-                try {
-                    await loadHistory(true);
-                    await loadMembers();
-                } catch {
-                    // Keep polling quietly.
-                }
-            }, 2500);
-        };
-
         const connectWebSocket = () => {
             const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${wsProtocol}//${window.location.host}/ws?sessionId=${encodeURIComponent(sessionId)}&roomId=${encodeURIComponent(roomId)}`;
+
+            if (socket) {
+                socket.close();
+            }
 
             socket = new WebSocket(wsUrl);
 
@@ -487,6 +448,11 @@
 
                 if (payload.type === "chat") {
                     appendMessage(payload);
+                }
+
+                if (payload.type === "client_joined" && payload.sessionId) {
+                    memberSet.add(payload.sessionId);
+                    renderMembers();
                 }
             };
 
@@ -505,23 +471,6 @@
                 showError(`Could not load messages: ${error.message}`);
             }
 
-            if (useHttpTransport) {
-                startHttpPolling();
-                return;
-            }
-
-            try {
-                const configResponse = await fetch(`${apiBase}/ws/chat/config`);
-                const configBody = await configResponse.json();
-                if (configResponse.ok && configBody.success === 1 && configBody.result?.data?.mode === "http") {
-                    startHttpPolling();
-                    return;
-                }
-            } catch {
-                // Fall back to WebSocket.
-            }
-
-            startHttpPolling();
             connectWebSocket();
         };
 
@@ -566,20 +515,18 @@
             }
 
             try {
-                if (transportMode === "http" || useHttpTransport) {
-                    await sendMessage(message);
-                } else if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(
-                        JSON.stringify({
-                            type: "chat",
-                            sessionId,
-                            roomId,
-                            message,
-                        })
-                    );
-                } else {
-                    await sendMessage(message);
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    throw new Error("WebSocket not connected");
                 }
+
+                socket.send(
+                    JSON.stringify({
+                        type: "chat",
+                        sessionId,
+                        roomId,
+                        message,
+                    })
+                );
                 messageInput.value = "";
             } catch (error) {
                 showError(`Send failed: ${error.message}`);

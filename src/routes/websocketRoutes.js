@@ -1,5 +1,4 @@
 const express = require("express");
-const chatboxService = require("../services/chatboxService");
 const {
     broadcast,
     publishChatMessage,
@@ -21,16 +20,7 @@ router.post("/ws/chat", async (req, res, next) => {
             return sendError(res, "Provide 'message' in the request body");
         }
 
-        let payload;
-
-        if (process.env.VERCEL) {
-            payload = {
-                type: "chat",
-                ...(await chatboxService.saveMessage({ sessionId, message, roomId })),
-            };
-        } else {
-            payload = await publishChatMessage({ sessionId, message, roomId });
-        }
+        let payload = await publishChatMessage({ sessionId, message, roomId });
 
         sendSuccess(res, {
             sent: true,

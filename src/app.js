@@ -67,11 +67,10 @@ app.get("/ws/chat/config", (req, res) => {
     const baseUrl = getPublicBaseUrl(req);
 
     sendSuccess(res, {
-        mode: process.env.VERCEL ? "http" : "websocket",
+        mode: "websocket",
         baseUrl,
         chatUrl: `${baseUrl}/session-chat`,
-        messagesUrl: `${baseUrl}/ws/chat/messages`,
-        sendUrl: `${baseUrl}/ws/chat`,
+        websocketPath: "/ws",
     });
 });
 
@@ -79,8 +78,7 @@ app.get("/ws/chat/messages", async (req, res, next) => {
     try {
         const roomId = req.query.roomId || "global";
         const limit = req.query.limit || 100;
-        const afterId = req.query.afterId;
-        const messages = await chatboxService.getMessages({ roomId, limit, afterId });
+        const messages = await chatboxService.getMessages({ roomId, limit });
 
         sendSuccess(res, messages, messages.length);
     } catch (error) {

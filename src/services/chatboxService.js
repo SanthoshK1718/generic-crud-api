@@ -49,11 +49,10 @@ const saveMessage = async ({
     return toChatPayload(document);
 };
 
-const getMessages = async ({ roomId = "global", limit = 100, afterId } = {}) => {
+const getMessages = async ({ roomId = "global", limit = 100 } = {}) => {
     const collection = await getChatboxCollection();
     const org_id = getOrgId();
     const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
-    const numericAfterId = Number(afterId);
 
     const roomFilter =
         roomId === "global"
@@ -62,18 +61,12 @@ const getMessages = async ({ roomId = "global", limit = 100, afterId } = {}) => 
               }
             : { room_id: roomId };
 
-    const idFilter =
-        Number.isInteger(numericAfterId) && numericAfterId > 0
-            ? { id: { $gt: numericAfterId } }
-            : {};
-
     const messages = await collection
         .find({
             is_deleted: { $ne: true },
             $and: [
                 { $or: [{ org_id }, { org_id: { $exists: false } }] },
                 roomFilter,
-                idFilter,
             ],
         })
         .sort({ created_on: 1, id: 1 })
