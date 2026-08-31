@@ -7,6 +7,10 @@
   },
   "rewrites": [
     {
+      "source": "/session-chat",
+      "destination": "/ws-session-chat.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/api"
     }
