@@ -88,6 +88,17 @@ app.get("/ws/chat/messages", async (req, res, next) => {
     }
 });
 
+app.get("/ws/chat/members", async (req, res, next) => {
+    try {
+        const roomId = req.query.roomId || "global";
+        const members = await chatboxService.getMembers({ roomId });
+
+        sendSuccess(res, members, members.length);
+    } catch (error) {
+        next(error);
+    }
+});
+
 app.get("/ws/status", (req, res) => {
     sendSuccess(res, {
         connectedCount: getConnectedCount(),
@@ -138,18 +149,7 @@ const startServer = async () => {
         server.listen(port, host, () => {
             const chatPath = "/session-chat";
             console.log(`Server running on http://localhost:${port}`);
-            console.log(`Session chat (laptop): http://localhost:${port}${chatPath}?sessionId=laptop`);
-            console.log(`WebSocket: ws://localhost:${port}/ws`);
-
-            const networkAddresses = getLocalNetworkAddresses();
-            if (networkAddresses.length) {
-                console.log("Open on phone (same Wi-Fi):");
-                networkAddresses.forEach((address) => {
-                    console.log(`  http://${address}:${port}${chatPath}?sessionId=mobile`);
-                });
-            } else {
-                console.log("No local network IP found. Use your machine IP for mobile testing.");
-            }
+            console.log(`Chat: http://localhost:${port}${chatPath}?roomId=global`);
         });
     } catch (error) {
         console.error("Failed to start server:", error.message);

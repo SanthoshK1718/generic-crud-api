@@ -83,7 +83,30 @@ const getMessages = async ({ roomId = "global", limit = 100, afterId } = {}) => 
     return messages.map(toChatPayload);
 };
 
+const getMembers = async ({ roomId = "global" } = {}) => {
+    const collection = await getChatboxCollection();
+    const org_id = getOrgId();
+
+    const roomFilter =
+        roomId === "global"
+            ? {
+                  $or: [{ room_id: "global" }, { room_id: { $exists: false } }],
+              }
+            : { room_id: roomId };
+
+    const sessionIds = await collection.distinct("sessionId", {
+        is_deleted: { $ne: true },
+        $and: [
+            { $or: [{ org_id }, { org_id: { $exists: false } }] },
+            roomFilter,
+        ],
+    });
+
+    return sessionIds.filter(Boolean).sort((a, b) => a.localeCompare(b));
+};
+
 module.exports = {
     saveMessage,
     getMessages,
+    getMembers,
 };

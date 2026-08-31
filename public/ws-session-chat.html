@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Session Chat</title>
+    <title>Chat</title>
     <style>
         * {
             box-sizing: border-box;
@@ -29,6 +29,78 @@
             box-shadow: 0 0 24px rgba(0, 0, 0, 0.08);
         }
 
+        .name-screen {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .name-card {
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .name-card h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        .name-card p {
+            margin: 0 0 20px;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .name-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .name-form input,
+        .composer input {
+            flex: 1;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .name-form input:focus,
+        .composer input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .name-form button,
+        .composer button,
+        .copy-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 0 18px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .copy-btn {
+            padding: 0 12px;
+            min-width: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .copy-btn.copied {
+            background: #16a34a;
+        }
+
         .header {
             padding: 14px 16px;
             border-bottom: 1px solid #e5e7eb;
@@ -37,48 +109,56 @@
 
         .header h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 20px;
         }
 
-        .header p {
-            margin: 6px 0 0;
-            font-size: 13px;
-            color: #6b7280;
-        }
-
-        .share-url {
-            margin-top: 8px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: #f3f4f6;
+        .members-label {
+            margin: 12px 0 6px;
             font-size: 12px;
-            line-height: 1.5;
-            word-break: break-all;
-            color: #374151;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
-        .status {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 4px 10px;
+        .members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .member-chip {
+            padding: 5px 10px;
             border-radius: 999px;
+            background: #eef2f7;
+            color: #374151;
             font-size: 12px;
             font-weight: 600;
         }
 
-        .status.connected {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .status.disconnected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .status.polling {
+        .member-chip.self {
             background: #dbeafe;
             color: #1d4ed8;
+        }
+
+        .share-row {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .share-url {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f3f4f6;
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-all;
+            color: #374151;
+            display: flex;
+            align-items: center;
         }
 
         .messages {
@@ -135,11 +215,6 @@
             border-bottom-right-radius: 6px;
         }
 
-        .message.system .message-bubble {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
         .empty-state {
             margin: auto;
             text-align: center;
@@ -156,136 +231,109 @@
             background: #fff;
         }
 
-        .composer input {
-            flex: 1;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            padding: 12px 14px;
-            font-size: 15px;
-            outline: none;
+        .error-text {
+            padding: 0 16px 12px;
+            color: #b91c1c;
+            font-size: 13px;
         }
 
-        .composer input:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-        }
-
-        .composer button {
-            border: none;
-            border-radius: 10px;
-            padding: 0 18px;
-            background: #2563eb;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .composer button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
     <div class="chat-app">
-        <div class="header">
-            <h1>Session Chat</h1>
-            <p id="sessionLabel">Loading session...</p>
-            <div id="shareUrl" class="share-url"></div>
-            <span id="statusBadge" class="status disconnected">Disconnected</span>
-        </div>
-
-        <div id="messages" class="messages">
-            <div class="empty-state" id="emptyState">
-                Waiting for messages from other sessions.<br />
-                Each device gets its own session ID automatically.
+        <div id="nameScreen" class="name-screen">
+            <div class="name-card">
+                <h1>Chat</h1>
+                <p>Enter your name to join the room. It will be saved on this device.</p>
+                <form id="nameForm" class="name-form">
+                    <input
+                        id="nameInput"
+                        type="text"
+                        placeholder="Your name"
+                        autocomplete="name"
+                        maxlength="40"
+                        required
+                    />
+                    <button type="submit">Enter</button>
+                </form>
             </div>
         </div>
 
-        <form id="composerForm" class="composer">
-            <input
-                id="messageInput"
-                type="text"
-                placeholder="Type a message..."
-                autocomplete="off"
-                disabled
-            />
-            <button id="sendButton" type="submit" disabled>Send</button>
-        </form>
+        <div id="chatScreen" class="hidden" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+            <div class="header">
+                <h1>Chat</h1>
+                <div class="members-label">Members</div>
+                <div id="members" class="members"></div>
+                <div class="share-row">
+                    <div id="shareUrl" class="share-url"></div>
+                    <button id="copyBtn" class="copy-btn" type="button" title="Copy room link" aria-label="Copy room link">⧉</button>
+                </div>
+            </div>
+
+            <div id="messages" class="messages">
+                <div class="empty-state" id="emptyState">No messages yet. Say hello.</div>
+            </div>
+
+            <div id="errorText" class="error-text hidden"></div>
+
+            <form id="composerForm" class="composer">
+                <input
+                    id="messageInput"
+                    type="text"
+                    placeholder="Type a message..."
+                    autocomplete="off"
+                />
+                <button id="sendButton" type="submit">Send</button>
+            </form>
+        </div>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const roomId = params.get("roomId") || "global";
-        const storageKey = `session-chat-id:${roomId}`;
-
-        const createSessionId = () =>
-            `user-${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
-
-        const getOrCreateSessionId = () => {
-            const fromUrl = params.get("sessionId");
-            if (fromUrl) {
-                localStorage.setItem(storageKey, fromUrl);
-                return fromUrl;
-            }
-
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                return saved;
-            }
-
-            const generated = createSessionId();
-            localStorage.setItem(storageKey, generated);
-            return generated;
-        };
-
-        const sessionId = getOrCreateSessionId();
-
-        if (!params.get("sessionId")) {
-            const nextParams = new URLSearchParams(window.location.search);
-            nextParams.set("sessionId", sessionId);
-            const nextUrl = `${window.location.pathname}?${nextParams.toString()}`;
-            window.history.replaceState({}, "", nextUrl);
-        }
-
-        const sessionLabel = document.getElementById("sessionLabel");
-        const shareUrl = document.getElementById("shareUrl");
-        const statusBadge = document.getElementById("statusBadge");
-        const messagesEl = document.getElementById("messages");
-        const emptyState = document.getElementById("emptyState");
-        const composerForm = document.getElementById("composerForm");
-        const messageInput = document.getElementById("messageInput");
-        const sendButton = document.getElementById("sendButton");
-
-        const renderedMessageIds = new Set();
-        let lastMessageId = 0;
-        let socket = null;
-        let pollTimer = null;
-        let transportMode = "websocket";
+        const nameStorageKey = `chat-name:${roomId}`;
         const apiBase = window.location.origin;
+        const roomUrl = `${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
         const useHttpTransport =
             window.location.hostname.endsWith(".vercel.app") ||
             params.get("mode") === "http";
 
-        const buildChatUrl = (nextSessionId = sessionId) =>
-            `${apiBase}/session-chat?sessionId=${encodeURIComponent(nextSessionId)}&roomId=${encodeURIComponent(roomId)}`;
+        if (params.has("sessionId")) {
+            params.delete("sessionId");
+            const cleanUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+            window.history.replaceState({}, "", cleanUrl);
+        }
 
-        sessionLabel.textContent = `Your session: ${sessionId} • Room: ${roomId}`;
+        const nameScreen = document.getElementById("nameScreen");
+        const chatScreen = document.getElementById("chatScreen");
+        const nameForm = document.getElementById("nameForm");
+        const nameInput = document.getElementById("nameInput");
+        const membersEl = document.getElementById("members");
+        const shareUrl = document.getElementById("shareUrl");
+        const copyBtn = document.getElementById("copyBtn");
+        const messagesEl = document.getElementById("messages");
+        const emptyState = document.getElementById("emptyState");
+        const composerForm = document.getElementById("composerForm");
+        const messageInput = document.getElementById("messageInput");
+        const errorText = document.getElementById("errorText");
 
-        const setConnected = (connected, label = null) => {
-            if (transportMode === "http") {
-                statusBadge.textContent = label || "Live (HTTP)";
-                statusBadge.className = "status polling";
-                messageInput.disabled = false;
-                sendButton.disabled = false;
-                return;
-            }
+        let sessionId = "";
+        let socket = null;
+        let pollTimer = null;
+        let transportMode = "http";
+        let lastMessageId = 0;
+        const renderedMessageIds = new Set();
+        const memberSet = new Set();
 
-            statusBadge.textContent = connected ? "Connected" : "Disconnected";
-            statusBadge.className = `status ${connected ? "connected" : "disconnected"}`;
-            messageInput.disabled = !connected;
-            sendButton.disabled = !connected;
+        const showError = (message) => {
+            errorText.textContent = message;
+            errorText.classList.remove("hidden");
+            setTimeout(() => errorText.classList.add("hidden"), 4000);
         };
 
         const formatTime = (timestamp) => {
@@ -293,12 +341,48 @@
             return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         };
 
-        const appendMessage = ({ id, sessionId: senderId, message, timestamp, system = false }) => {
+        const renderMembers = (members = []) => {
+            members.forEach((name) => memberSet.add(name));
+            if (sessionId) {
+                memberSet.add(sessionId);
+            }
+
+            membersEl.innerHTML = "";
+            Array.from(memberSet)
+                .sort((a, b) => a.localeCompare(b))
+                .forEach((name) => {
+                    const chip = document.createElement("span");
+                    chip.className = `member-chip${name === sessionId ? " self" : ""}`;
+                    chip.textContent = name === sessionId ? `${name} (you)` : name;
+                    membersEl.appendChild(chip);
+                });
+        };
+
+        const loadMembers = async () => {
+            try {
+                const response = await fetch(
+                    `${apiBase}/ws/chat/members?roomId=${encodeURIComponent(roomId)}`
+                );
+                const body = await response.json();
+                if (response.ok && body.success === 1) {
+                    renderMembers(body.result?.data || []);
+                }
+            } catch {
+                renderMembers();
+            }
+        };
+
+        const appendMessage = ({ id, sessionId: senderId, message, timestamp }) => {
             const messageKey = id || `${senderId}-${timestamp}-${message}`;
             if (renderedMessageIds.has(messageKey)) {
                 return;
             }
             renderedMessageIds.add(messageKey);
+
+            if (senderId) {
+                memberSet.add(senderId);
+                renderMembers();
+            }
 
             if (id && Number(id) > lastMessageId) {
                 lastMessageId = Number(id);
@@ -310,13 +394,11 @@
 
             const isSelf = senderId === sessionId;
             const wrapper = document.createElement("div");
-            wrapper.className = `message ${system ? "system" : isSelf ? "self" : "other"}`;
+            wrapper.className = `message ${isSelf ? "self" : "other"}`;
 
             const meta = document.createElement("div");
             meta.className = "message-meta";
-            meta.textContent = system
-                ? "System"
-                : `${isSelf ? "You" : senderId} • ${formatTime(timestamp)}`;
+            meta.textContent = `${isSelf ? "You" : senderId} • ${formatTime(timestamp)}`;
 
             const bubble = document.createElement("div");
             bubble.className = "message-bubble";
@@ -348,7 +430,7 @@
             const messages = body.result?.data || [];
             messages.forEach((item) => appendMessage(item));
 
-            if (!onlyNew && !messages.length && emptyState && !messagesEl.querySelector(".message")) {
+            if (!onlyNew && !messages.length && !messagesEl.querySelector(".message")) {
                 messagesEl.appendChild(emptyState);
             }
 
@@ -368,15 +450,13 @@
             }
 
             const payload = body.result?.data?.payload;
-            if (payload && transportMode === "http") {
+            if (payload) {
                 appendMessage(payload);
             }
         };
 
         const startHttpPolling = () => {
             transportMode = "http";
-            setConnected(true);
-
             if (pollTimer) {
                 clearInterval(pollTimer);
             }
@@ -384,35 +464,11 @@
             pollTimer = setInterval(async () => {
                 try {
                     await loadHistory(true);
-                    setConnected(true);
+                    await loadMembers();
                 } catch {
-                    setConnected(true, "Reconnecting...");
+                    // Keep polling quietly.
                 }
             }, 2500);
-        };
-
-        const startHttpMode = async () => {
-            transportMode = "http";
-            shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
-
-            try {
-                await loadHistory();
-            } catch (error) {
-                appendMessage({
-                    sessionId,
-                    message: `Could not load saved messages: ${error.message}`,
-                    timestamp: new Date().toISOString(),
-                    system: true,
-                });
-            }
-
-            startHttpPolling();
-            appendMessage({
-                sessionId,
-                message: "Connected (live sync)",
-                timestamp: new Date().toISOString(),
-                system: true,
-            });
         };
 
         const connectWebSocket = () => {
@@ -421,22 +477,8 @@
 
             socket = new WebSocket(wsUrl);
 
-            socket.onopen = () => {
-                setConnected(true);
-            };
-
-            socket.onclose = () => {
-                setConnected(false);
-                setTimeout(connectWebSocket, 2000);
-            };
-
-            socket.onerror = () => {
-                setConnected(false);
-            };
-
             socket.onmessage = (event) => {
                 let payload;
-
                 try {
                     payload = JSON.parse(event.data);
                 } catch {
@@ -445,78 +487,86 @@
 
                 if (payload.type === "chat") {
                     appendMessage(payload);
-                    return;
                 }
+            };
 
-                if (payload.type === "error") {
-                    appendMessage({
-                        sessionId,
-                        message: payload.message,
-                        timestamp: new Date().toISOString(),
-                        system: true,
-                    });
-                    return;
-                }
-
-                if (payload.type === "connected") {
-                    appendMessage({
-                        sessionId,
-                        message: `Connected as ${sessionId}`,
-                        timestamp: payload.timestamp,
-                        system: true,
-                    });
-                }
+            socket.onclose = () => {
+                setTimeout(connectWebSocket, 2000);
             };
         };
 
         const initChat = async () => {
-            shareUrl.textContent = `Share room: ${apiBase}/session-chat?roomId=${encodeURIComponent(roomId)}`;
+            shareUrl.textContent = roomUrl;
+
+            try {
+                await loadHistory();
+                await loadMembers();
+            } catch (error) {
+                showError(`Could not load messages: ${error.message}`);
+            }
 
             if (useHttpTransport) {
-                await startHttpMode();
+                startHttpPolling();
                 return;
             }
 
             try {
                 const configResponse = await fetch(`${apiBase}/ws/chat/config`);
                 const configBody = await configResponse.json();
-
-                if (configResponse.ok && configBody.success === 1) {
-                    const config = configBody.result?.data || {};
-
-                    if (config.mode === "http") {
-                        await startHttpMode();
-                        return;
-                    }
+                if (configResponse.ok && configBody.success === 1 && configBody.result?.data?.mode === "http") {
+                    startHttpPolling();
+                    return;
                 }
             } catch {
-                // Fall back to WebSocket below.
+                // Fall back to WebSocket.
             }
 
-            try {
-                await loadHistory();
-            } catch (error) {
-                appendMessage({
-                    sessionId,
-                    message: `Could not load saved messages: ${error.message}`,
-                    timestamp: new Date().toISOString(),
-                    system: true,
-                });
-            }
-
+            startHttpPolling();
             connectWebSocket();
         };
 
+        const openChat = (name) => {
+            sessionId = name.trim();
+            localStorage.setItem(nameStorageKey, sessionId);
+            nameScreen.classList.add("hidden");
+            chatScreen.classList.remove("hidden");
+            shareUrl.textContent = roomUrl;
+            renderMembers([sessionId]);
+            initChat();
+        };
+
+        nameForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const name = nameInput.value.trim();
+            if (!name) {
+                return;
+            }
+            openChat(name);
+        });
+
+        copyBtn.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(roomUrl);
+                copyBtn.textContent = "✓";
+                copyBtn.classList.add("copied");
+                setTimeout(() => {
+                    copyBtn.textContent = "⧉";
+                    copyBtn.classList.remove("copied");
+                }, 1500);
+            } catch {
+                showError("Could not copy link");
+            }
+        });
+
         composerForm.addEventListener("submit", async (event) => {
             event.preventDefault();
-
             const message = messageInput.value.trim();
             if (!message) {
                 return;
             }
 
             try {
-                if (transportMode === "http") {
+                if (transportMode === "http" || useHttpTransport) {
                     await sendMessage(message);
                 } else if (socket && socket.readyState === WebSocket.OPEN) {
                     socket.send(
@@ -528,21 +578,20 @@
                         })
                     );
                 } else {
-                    throw new Error("Not connected");
+                    await sendMessage(message);
                 }
-
                 messageInput.value = "";
             } catch (error) {
-                appendMessage({
-                    sessionId,
-                    message: `Send failed: ${error.message}`,
-                    timestamp: new Date().toISOString(),
-                    system: true,
-                });
+                showError(`Send failed: ${error.message}`);
             }
         });
 
-        initChat();
+        const savedName = localStorage.getItem(nameStorageKey);
+        if (savedName) {
+            openChat(savedName);
+        } else {
+            nameInput.focus();
+        }
     </script>
 </body>
 </html>
