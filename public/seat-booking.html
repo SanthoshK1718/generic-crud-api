@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ticket Booking</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .app {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 16px 32px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        h1, h2 {
+            margin: 0 0 8px;
+        }
+
+        p {
+            margin: 0 0 16px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        .grid-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #f8fafc;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 15px;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button.secondary {
+            background: #334155;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .hidden { display: none !important; }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .screen {
+            margin: 0 auto 20px;
+            width: min(100%, 520px);
+            padding: 10px;
+            text-align: center;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #38bdf8, #0284c7);
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+
+        .seat-grid {
+            display: grid;
+            gap: 8px;
+            justify-content: center;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .seat {
+            width: 42px;
+            height: 42px;
+            border: none;
+            border-radius: 8px 8px 12px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #0f172a;
+            background: #22c55e;
+        }
+
+        .seat.blocked-other {
+            background: #ef4444;
+            color: #fff;
+            cursor: not-allowed;
+        }
+
+        .seat.blocked-me {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .seat.booked {
+            background: #64748b;
+            color: #fff;
+            cursor: not-allowed;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .status.connected { color: #4ade80; }
+        .status.disconnected { color: #f87171; }
+
+        .error {
+            color: #fca5a5;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .selected-list {
+            margin-top: 12px;
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div id="setupScreen" class="card">
+            <h1>Ticket Booking</h1>
+            <p>Set up the hall seating grid. X = columns, Y = rows.</p>
+            <div class="grid-form">
+                <div>
+                    <label for="hallIdInput">Hall ID</label>
+                    <input id="hallIdInput" type="text" value="main" />
+                </div>
+                <div>
+                    <label for="colsInput">Columns (X)</label>
+                    <input id="colsInput" type="number" min="1" max="30" value="8" />
+                </div>
+                <div>
+                    <label for="rowsInput">Rows (Y)</label>
+                    <input id="rowsInput" type="number" min="1" max="26" value="6" />
+                </div>
+            </div>
+            <button id="createHallBtn" type="button">Create Hall Seats</button>
+            <div id="setupError" class="error hidden"></div>
+        </div>
+
+        <div id="nameScreen" class="card hidden">
+            <h2>Enter your name</h2>
+            <p>Your name is used to block seats in real time.</p>
+            <div class="grid-form">
+                <div>
+                    <label for="userNameInput">Your name</label>
+                    <input id="userNameInput" type="text" placeholder="e.g. Mahesh" maxlength="40" />
+                </div>
+            </div>
+            <button id="enterHallBtn" type="button">Enter Hall</button>
+        </div>
+
+        <div id="bookingScreen" class="card hidden">
+            <div class="meta-row">
+                <div>
+                    <h2 id="hallTitle">Hall</h2>
+                    <p id="userLabel">Booking as guest</p>
+                </div>
+                <div id="wsStatus" class="status disconnected">Disconnected</div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><span class="dot" style="background:#22c55e"></span> Available</div>
+                <div class="legend-item"><span class="dot" style="background:#3b82f6"></span> Your seat</div>
+                <div class="legend-item"><span class="dot" style="background:#ef4444"></span> Taken</div>
+                <div class="legend-item"><span class="dot" style="background:#64748b"></span> Booked</div>
+            </div>
+
+            <div class="screen">SCREEN</div>
+            <div id="seatGrid" class="seat-grid"></div>
+            <div id="selectedList" class="selected-list"></div>
+            <div id="bookingError" class="error hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const apiBase = window.location.origin;
+
+        const setupScreen = document.getElementById("setupScreen");
+        const nameScreen = document.getElementById("nameScreen");
+        const bookingScreen = document.getElementById("bookingScreen");
+        const hallIdInput = document.getElementById("hallIdInput");
+        const colsInput = document.getElementById("colsInput");
+        const rowsInput = document.getElementById("rowsInput");
+        const createHallBtn = document.getElementById("createHallBtn");
+        const setupError = document.getElementById("setupError");
+        const userNameInput = document.getElementById("userNameInput");
+        const enterHallBtn = document.getElementById("enterHallBtn");
+        const hallTitle = document.getElementById("hallTitle");
+        const userLabel = document.getElementById("userLabel");
+        const wsStatus = document.getElementById("wsStatus");
+        const seatGrid = document.getElementById("seatGrid");
+        const selectedList = document.getElementById("selectedList");
+        const bookingError = document.getElementById("bookingError");
+
+        let hallId = params.get("hall") || "main";
+        let userId = "";
+        let socket = null;
+        let layout = { rows: 0, cols: 0, seats: [] };
+        const seatMap = new Map();
+
+        hallIdInput.value = hallId;
+
+        const seatKey = (x, y) => `${x}-${y}`;
+
+        const showError = (el, message) => {
+            el.textContent = message;
+            el.classList.remove("hidden");
+        };
+
+        const hideError = (el) => {
+            el.classList.add("hidden");
+        };
+
+        const getNameStorageKey = () => `seat-booking-user:${hallId}`;
+
+        const updateSeatInMap = (seat) => {
+            seatMap.set(seatKey(seat.x, seat.y), seat);
+        };
+
+        const renderSelectedList = () => {
+            const mine = layout.seats.filter(
+                (seat) => seat.status === "blocked" && seat.blockedBy === userId
+            );
+
+            selectedList.textContent = mine.length
+                ? `Your seats: ${mine.map((seat) => seat.seatLabel).join(", ")}`
+                : "No seats selected yet.";
+        };
+
+        const getSeatClass = (seat) => {
+            if (seat.status === "booked") return "booked";
+            if (seat.status === "blocked" && seat.blockedBy === userId) return "blocked-me";
+            if (seat.status === "blocked") return "blocked-other";
+            return "available";
+        };
+
+        const renderGrid = () => {
+            seatGrid.style.gridTemplateColumns = `repeat(${layout.cols}, 42px)`;
+            seatGrid.innerHTML = "";
+
+            for (let y = 0; y < layout.rows; y += 1) {
+                for (let x = 0; x < layout.cols; x += 1) {
+                    const seat = seatMap.get(seatKey(x, y)) || {
+                        x,
+                        y,
+                        seatLabel: `${String.fromCharCode(65 + y)}${x + 1}`,
+                        status: "available",
+                        blockedBy: null,
+                    };
+
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = `seat ${getSeatClass(seat)}`;
+                    button.textContent = seat.seatLabel;
+                    button.title = seat.blockedBy
+                        ? `${seat.seatLabel} - ${seat.blockedBy}`
+                        : seat.seatLabel;
+
+                    button.addEventListener("click", () => handleSeatClick(seat));
+                    seatGrid.appendChild(button);
+                }
+            }
+
+            renderSelectedList();
+        };
+
+        const loadLayout = async () => {
+            const response = await fetch(
+                `${apiBase}/seats/layout?hallId=${encodeURIComponent(hallId)}`
+            );
+            const body = await response.json();
+
+            if (!response.ok || body.success !== 1) {
+                throw new Error(body.error || "Failed to load hall");
+            }
+
+            layout = body.result?.data || { rows: 0, cols: 0, seats: [] };
+            seatMap.clear();
+            layout.seats.forEach(updateSeatInMap);
+            return layout;
+        };
+
+        const createHall = async (reset = false) => {
+            hideError(setupError);
+            hallId = hallIdInput.value.trim() || "main";
+
+            const response = await fetch(`${apiBase}/seats/init`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    hallId,
+                    rows: Number(rowsInput.value),
+                    cols: Number(colsInput.value),
+                    reset,
+                }),
+            });
+
+            const body = await response.json();
+
+            if (!response.ok || body.success !== 1) {
+                throw new Error(body.error || "Failed to create hall");
+            }
+
+            layout = body.result?.data;
+            seatMap.clear();
+            layout.seats.forEach(updateSeatInMap);
+
+            const nextUrl = `${window.location.pathname}?hall=${encodeURIComponent(hallId)}`;
+            window.history.replaceState({}, "", nextUrl);
+
+            setupScreen.classList.add("hidden");
+            nameScreen.classList.remove("hidden");
+        };
+
+        const connectWebSocket = () => {
+            const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws?hallId=${encodeURIComponent(hallId)}&userId=${encodeURIComponent(userId)}`;
+
+            if (socket) {
+                socket.close();
+            }
+
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                wsStatus.textContent = "Connected";
+                wsStatus.className = "status connected";
+            };
+
+            socket.onclose = () => {
+                wsStatus.textContent = "Disconnected";
+                wsStatus.className = "status disconnected";
+                setTimeout(connectWebSocket, 2000);
+            };
+
+            socket.onmessage = (event) => {
+                let payload;
+                try {
+                    payload = JSON.parse(event.data);
+                } catch {
+                    return;
+                }
+
+                if (payload.type === "seat_updated" && payload.seat) {
+                    updateSeatInMap(payload.seat);
+                    const index = layout.seats.findIndex(
+                        (seat) => seat.x === payload.seat.x && seat.y === payload.seat.y
+                    );
+                    if (index >= 0) {
+                        layout.seats[index] = payload.seat;
+                    } else {
+                        layout.seats.push(payload.seat);
+                    }
+                    renderGrid();
+                }
+
+                if (payload.type === "seat_error") {
+                    showError(bookingError, payload.message);
+                    setTimeout(() => hideError(bookingError), 3000);
+                }
+            };
+        };
+
+        const handleSeatClick = (seat) => {
+            hideError(bookingError);
+
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                showError(bookingError, "WebSocket not connected");
+                return;
+            }
+
+            const isMine = seat.status === "blocked" && seat.blockedBy === userId;
+            const isAvailable = seat.status === "available";
+
+            if (!isAvailable && !isMine) {
+                return;
+            }
+
+            socket.send(
+                JSON.stringify({
+                    type: isMine ? "seat_unblock" : "seat_block",
+                    hallId,
+                    userId,
+                    x: seat.x,
+                    y: seat.y,
+                })
+            );
+        };
+
+        const openBooking = async () => {
+            userId = userNameInput.value.trim();
+            if (!userId) {
+                return;
+            }
+
+            localStorage.setItem(getNameStorageKey(), userId);
+            nameScreen.classList.add("hidden");
+            bookingScreen.classList.remove("hidden");
+            hallTitle.textContent = `Hall: ${hallId} (${layout.cols} x ${layout.rows})`;
+            userLabel.textContent = `Booking as ${userId}`;
+
+            await loadLayout();
+            renderGrid();
+            connectWebSocket();
+        };
+
+        const bootstrap = async () => {
+            try {
+                const currentLayout = await loadLayout();
+
+                if (!currentLayout.seats.length) {
+                    setupScreen.classList.remove("hidden");
+                    nameScreen.classList.add("hidden");
+                    bookingScreen.classList.add("hidden");
+                    return;
+                }
+
+                setupScreen.classList.add("hidden");
+                const savedName = localStorage.getItem(getNameStorageKey());
+
+                if (savedName) {
+                    userNameInput.value = savedName;
+                    await openBooking();
+                    return;
+                }
+
+                nameScreen.classList.remove("hidden");
+            } catch (error) {
+                showError(setupError, error.message);
+            }
+        };
+
+        createHallBtn.addEventListener("click", async () => {
+            try {
+                await createHall(false);
+            } catch (error) {
+                showError(setupError, error.message);
+            }
+        });
+
+        enterHallBtn.addEventListener("click", async () => {
+            try {
+                await openBooking();
+            } catch (error) {
+                showError(setupError, error.message);
+            }
+        });
+
+        bootstrap();
+    </script>
+</body>
+</html>

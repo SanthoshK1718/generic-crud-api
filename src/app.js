@@ -13,6 +13,7 @@ const loginRoutes = require("./routes/loginRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const crudRoutes = require("./routes/crudRoutes");
 const websocketRoutes = require("./routes/websocketRoutes");
+const seatRoutes = require("./routes/seatRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const parseJsonBody = require("./middleware/parseJsonBody");
 const { sendSuccess, sendError } = require("./utils/response");
@@ -105,6 +106,8 @@ app.get("/ws/status", (req, res) => {
     });
 });
 
+app.use("/", seatRoutes);
+
 app.use("/", websocketRoutes);
 app.use("/", aiRoutes);
 
@@ -131,7 +134,7 @@ app.use((req, res) => {
 
     sendError(
         res,
-        `Route not found: ${req.method} ${req.originalUrl}. Use /session-chat, /ai/chat, /ai/chatwithhistory, /ws/chat, /ws/status, /ws/broadcast, /login, or /{collection}/create|getall|update|delete`
+        `Route not found: ${req.method} ${req.originalUrl}. Use /seat-booking, /session-chat, /ai/chat, /ai/chatwithhistory, /ws/chat, /seats/layout, /seats/init, /login, or /{collection}/create|getall|update|delete`
     );
 });
 
@@ -145,9 +148,17 @@ const startServer = async () => {
         initWebSocketServer(server, "/ws");
 
         server.listen(port, host, () => {
-            const chatPath = "/session-chat";
             console.log(`Server running on http://localhost:${port}`);
-            console.log(`Chat: http://localhost:${port}${chatPath}?roomId=global`);
+            console.log(`Seat booking: http://localhost:${port}/seat-booking`);
+            console.log(`Chat: http://localhost:${port}/session-chat?roomId=global`);
+
+            const networkAddresses = getLocalNetworkAddresses();
+            if (networkAddresses.length) {
+                console.log("Seat booking on phone (same Wi-Fi):");
+                networkAddresses.forEach((address) => {
+                    console.log(`  http://${address}:${port}/seat-booking`);
+                });
+            }
         });
     } catch (error) {
         console.error("Failed to start server:", error.message);

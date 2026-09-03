@@ -324,6 +324,39 @@
         let lastMessageId = 0;
         const renderedMessageIds = new Set();
         const memberSet = new Set();
+        const notificationsSupported = "Notification" in window;
+
+        const requestNotificationPermission = async () => {
+            if (!notificationsSupported || Notification.permission !== "default") {
+                return;
+            }
+            await Notification.requestPermission();
+        };
+
+        const showBrowserNotification = (senderId, message) => {
+            if (!notificationsSupported || Notification.permission !== "granted") {
+                return;
+            }
+
+            if (!senderId || senderId === sessionId) {
+                return;
+            }
+
+            if (document.hasFocus() && !document.hidden) {
+                return;
+            }
+
+            const notification = new Notification(`${senderId} sent a message`, {
+                body: message,
+                tag: `chat-${roomId}`,
+                renotify: true,
+            });
+
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+        };
 
         const showError = (message) => {
             errorText.textContent = message;
@@ -448,6 +481,7 @@
 
                 if (payload.type === "chat") {
                     appendMessage(payload);
+                    showBrowserNotification(payload.sessionId, payload.message);
                 }
 
                 if (payload.type === "client_joined" && payload.sessionId) {
@@ -474,13 +508,14 @@
             connectWebSocket();
         };
 
-        const openChat = (name) => {
+        const openChat = async (name) => {
             sessionId = name.trim();
             localStorage.setItem(nameStorageKey, sessionId);
             nameScreen.classList.add("hidden");
             chatScreen.classList.remove("hidden");
             shareUrl.textContent = roomUrl;
             renderMembers([sessionId]);
+            await requestNotificationPermission();
             initChat();
         };
 

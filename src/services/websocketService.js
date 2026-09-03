@@ -1,5 +1,6 @@
 const { WebSocketServer } = require("ws");
 const chatboxService = require("./chatboxService");
+const seatService = require("./seatService");
 
 let wss = null;
 const clients = new Map();
@@ -25,6 +26,24 @@ const getRoomIdFromRequest = (req) => {
         return url.searchParams.get("roomId") || "global";
     } catch {
         return "global";
+    }
+};
+
+const getHallIdFromRequest = (req) => {
+    try {
+        const url = new URL(req.url, "http://localhost");
+        return url.searchParams.get("hallId") || "main";
+    } catch {
+        return "main";
+    }
+};
+
+const getUserIdFromRequest = (req) => {
+    try {
+        const url = new URL(req.url, "http://localhost");
+        return url.searchParams.get("userId") || url.searchParams.get("sessionId") || null;
+    } catch {
+        return null;
     }
 };
 
@@ -58,6 +77,31 @@ const publishChatMessage = async ({
     return payload;
 };
 
+const publishSeatUpdate = async ({ action, hallId, x, y, userId }) => {
+    let result;
+
+    if (action === "block") {
+        result = await seatService.blockSeat({ hallId, x, y, userId });
+    } else if (action === "unblock") {
+        result = await seatService.unblockSeat({ hallId, x, y, userId });
+    } else {
+        return { error: "Invalid seat action" };
+    }
+
+    if (result.error) {
+        return result;
+    }
+
+    const payload = {
+        type: "seat_updated",
+        hallId,
+        seat: result,
+    };
+
+    broadcastToHall(hallId, payload);
+    return payload;
+};
+
 const initWebSocketServer = (httpServer, path = "/ws") => {
     wss = new WebSocketServer({ server: httpServer, path });
 
@@ -65,10 +109,14 @@ const initWebSocketServer = (httpServer, path = "/ws") => {
         const clientId = createClientId();
         const sessionId = getSessionIdFromRequest(req);
         const roomId = getRoomIdFromRequest(req);
+        const hallId = getHallIdFromRequest(req);
+        const userId = getUserIdFromRequest(req);
         const clientInfo = {
             id: clientId,
             sessionId,
             roomId,
+            hallId,
+            userId,
             connectedAt: new Date().toISOString(),
             ip: req.socket.remoteAddress,
         };
@@ -121,6 +169,45 @@ const initWebSocketServer = (httpServer, path = "/ws") => {
                 return;
             }
 
+            if (parsed.type === "seat_block" || parsed.type === "seat_unblock") {
+                const activeHallId = parsed.hallId || hallId;
+                const activeUserId = parsed.userId || userId;
+
+                if (!activeUserId) {
+                    sendToClient(ws, {
+                        type: "seat_error",
+                        message: "userId is required",
+                    });
+                    return;
+                }
+
+                try {
+                    const result = await publishSeatUpdate({
+                        action: parsed.type === "seat_block" ? "block" : "unblock",
+                        hallId: activeHallId,
+                        x: parsed.x,
+                        y: parsed.y,
+                        userId: activeUserId,
+                    });
+
+                    if (result.error) {
+                        sendToClient(ws, {
+                            type: "seat_error",
+                            message: result.error,
+                            x: parsed.x,
+                            y: parsed.y,
+                        });
+                    }
+                } catch (error) {
+                    sendToClient(ws, {
+                        type: "seat_error",
+                        message: "Failed to update seat",
+                        detail: error.message,
+                    });
+                }
+                return;
+            }
+
             sendToClient(ws, {
                 type: "echo",
                 received: parsed,
@@ -128,8 +215,28 @@ const initWebSocketServer = (httpServer, path = "/ws") => {
             });
         });
 
-        ws.on("close", () => {
+        ws.on("close", async () => {
+            const { hallId: clientHallId, userId: clientUserId } = clientInfo;
             clients.delete(ws);
+
+            if (clientHallId && clientUserId) {
+                try {
+                    const released = await seatService.releaseSeatsByUser(
+                        clientHallId,
+                        clientUserId
+                    );
+
+                    released.forEach((seat) => {
+                        broadcastToHall(clientHallId, {
+                            type: "seat_updated",
+                            hallId: clientHallId,
+                            seat,
+                        });
+                    });
+                } catch {
+                    // Ignore release errors on disconnect.
+                }
+            }
 
             broadcast({
                 type: "client_left",
@@ -157,21 +264,37 @@ const broadcast = (payload, excludeWs = null) => {
     }
 };
 
+const broadcastToHall = (hallId, payload, excludeWs = null) => {
+    const message = JSON.stringify(payload);
+
+    for (const [ws, info] of clients) {
+        if (ws !== excludeWs && info.hallId === hallId && ws.readyState === ws.OPEN) {
+            ws.send(message);
+        }
+    }
+};
+
 const getConnectedClients = () =>
-    Array.from(clients.values()).map(({ id, sessionId, roomId, connectedAt, ip }) => ({
-        id,
-        sessionId,
-        roomId,
-        connectedAt,
-        ip,
-    }));
+    Array.from(clients.values()).map(
+        ({ id, sessionId, roomId, hallId, userId, connectedAt, ip }) => ({
+            id,
+            sessionId,
+            roomId,
+            hallId,
+            userId,
+            connectedAt,
+            ip,
+        })
+    );
 
 const getConnectedCount = () => clients.size;
 
 module.exports = {
     initWebSocketServer,
     broadcast,
+    broadcastToHall,
     publishChatMessage,
+    publishSeatUpdate,
     getConnectedClients,
     getConnectedCount,
 };
