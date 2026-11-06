@@ -267,13 +267,8 @@
         let hallId = params.get("hall") || "main";
         let userId = "";
         let socket = null;
-        let httpMode = false;
-        let pollTimer = null;
         let layout = { rows: 0, cols: 0, seats: [] };
         const seatMap = new Map();
-        const prefersHttp =
-            window.location.hostname.endsWith(".vercel.app") ||
-            window.location.hostname.endsWith(".vercel.sh");
 
         hallIdInput.value = hallId;
 
@@ -389,87 +384,7 @@
             nameScreen.classList.remove("hidden");
         };
 
-        const markConnected = () => {
-            wsStatus.textContent = "Connected";
-            wsStatus.className = "status connected";
-        };
-
-        const startPolling = () => {
-            if (pollTimer) {
-                return;
-            }
-
-            pollTimer = setInterval(async () => {
-                try {
-                    await loadLayout();
-                    renderGrid();
-                } catch {
-                    // Keep the last grid if a refresh fails.
-                }
-            }, 2000);
-        };
-
-        const enableHttpMode = () => {
-            httpMode = true;
-
-            if (socket) {
-                socket.onclose = null;
-                socket.onerror = null;
-                socket.close();
-                socket = null;
-            }
-
-            markConnected();
-            startPolling();
-        };
-
-        const applySeat = (seat) => {
-            updateSeatInMap(seat);
-            const index = layout.seats.findIndex(
-                (item) => item.x === seat.x && item.y === seat.y
-            );
-
-            if (index >= 0) {
-                layout.seats[index] = seat;
-            } else {
-                layout.seats.push(seat);
-            }
-
-            renderGrid();
-        };
-
-        const postSeatAction = async (action, seat) => {
-            const response = await fetch(`${apiBase}/seats/${action}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    hallId,
-                    userId,
-                    x: seat.x,
-                    y: seat.y,
-                }),
-            });
-            const body = await response.json();
-
-            if (!response.ok || body.success !== 1) {
-                showError(bookingError, body.error || "Failed to update seat");
-                setTimeout(() => hideError(bookingError), 3000);
-                await loadLayout();
-                renderGrid();
-                return;
-            }
-
-            if (body.result?.data) {
-                applySeat(body.result.data);
-            }
-        };
-
         const connectWebSocket = () => {
-            if (httpMode || prefersHttp) {
-                enableHttpMode();
-                return;
-            }
-
             const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${wsProtocol}//${window.location.host}/ws?hallId=${encodeURIComponent(hallId)}&userId=${encodeURIComponent(userId)}`;
 
@@ -478,24 +393,13 @@
             }
 
             socket = new WebSocket(wsUrl);
-            let opened = false;
-            const failTimer = setTimeout(() => {
-                if (!opened) {
-                    enableHttpMode();
-                }
-            }, 2000);
 
             socket.onopen = () => {
-                opened = true;
-                clearTimeout(failTimer);
-                markConnected();
+                wsStatus.textContent = "Connected";
+                wsStatus.className = "status connected";
             };
 
             socket.onclose = () => {
-                if (httpMode) {
-                    return;
-                }
-
                 wsStatus.textContent = "Disconnected";
                 wsStatus.className = "status disconnected";
                 setTimeout(connectWebSocket, 2000);
@@ -510,7 +414,16 @@
                 }
 
                 if (payload.type === "seat_updated" && payload.seat) {
-                    applySeat(payload.seat);
+                    updateSeatInMap(payload.seat);
+                    const index = layout.seats.findIndex(
+                        (seat) => seat.x === payload.seat.x && seat.y === payload.seat.y
+                    );
+                    if (index >= 0) {
+                        layout.seats[index] = payload.seat;
+                    } else {
+                        layout.seats.push(payload.seat);
+                    }
+                    renderGrid();
                 }
 
                 if (payload.type === "seat_error") {
@@ -520,27 +433,18 @@
             };
         };
 
-        const handleSeatClick = async (seat) => {
+        const handleSeatClick = (seat) => {
             hideError(bookingError);
+
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                showError(bookingError, "WebSocket not connected");
+                return;
+            }
 
             const isMine = seat.status === "blocked" && seat.blockedBy === userId;
             const isAvailable = seat.status === "available";
 
             if (!isAvailable && !isMine) {
-                return;
-            }
-
-            const action = isMine ? "unblock" : "block";
-
-            if (httpMode || !socket || socket.readyState !== WebSocket.OPEN) {
-                try {
-                    if (!httpMode) {
-                        enableHttpMode();
-                    }
-                    await postSeatAction(action, seat);
-                } catch (error) {
-                    showError(bookingError, error.message);
-                }
                 return;
             }
 
