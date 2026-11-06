@@ -215,28 +215,8 @@ const initWebSocketServer = (httpServer, path = "/ws") => {
             });
         });
 
-        ws.on("close", async () => {
-            const { hallId: clientHallId, userId: clientUserId } = clientInfo;
+        ws.on("close", () => {
             clients.delete(ws);
-
-            if (clientHallId && clientUserId) {
-                try {
-                    const released = await seatService.releaseSeatsByUser(
-                        clientHallId,
-                        clientUserId
-                    );
-
-                    released.forEach((seat) => {
-                        broadcastToHall(clientHallId, {
-                            type: "seat_updated",
-                            hallId: clientHallId,
-                            seat,
-                        });
-                    });
-                } catch {
-                    // Ignore release errors on disconnect.
-                }
-            }
 
             broadcast({
                 type: "client_left",
