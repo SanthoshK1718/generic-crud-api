@@ -21,46 +21,6 @@ router.get("/seats/layout", async (req, res, next) => {
     }
 });
 
-router.post("/seats/block", async (req, res, next) => {
-    try {
-        const { hallId = "main", x, y, userId } = req.body || {};
-
-        if (!userId || x === undefined || y === undefined) {
-            return sendError(res, "Provide 'hallId', 'userId', 'x', and 'y'");
-        }
-
-        const seat = await seatService.blockSeat({ hallId, x, y, userId });
-
-        if (seat.error) {
-            return sendError(res, seat.error);
-        }
-
-        sendSuccess(res, seat);
-    } catch (error) {
-        next(error);
-    }
-});
-
-router.post("/seats/unblock", async (req, res, next) => {
-    try {
-        const { hallId = "main", x, y, userId } = req.body || {};
-
-        if (!userId || x === undefined || y === undefined) {
-            return sendError(res, "Provide 'hallId', 'userId', 'x', and 'y'");
-        }
-
-        const seat = await seatService.unblockSeat({ hallId, x, y, userId });
-
-        if (seat.error) {
-            return sendError(res, seat.error);
-        }
-
-        sendSuccess(res, seat);
-    } catch (error) {
-        next(error);
-    }
-});
-
 router.post("/seats/init", async (req, res, next) => {
     try {
         const { hallId = "main", rows, cols, reset = false } = req.body || {};
