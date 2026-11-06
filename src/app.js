@@ -139,13 +139,14 @@ app.use((req, res) => {
 });
 
 app.use(errorHandler);
+
+const server = http.createServer(app);
+initWebSocketServer(server, "/ws");
+
 const startServer = async () => {
     try {
         const port = process.env.PORT || 3000;
         const host = process.env.HOST || "0.0.0.0";
-        const server = http.createServer(app);
-
-        initWebSocketServer(server, "/ws");
 
         server.listen(port, host, () => {
             console.log(`Server running on http://localhost:${port}`);
@@ -170,4 +171,4 @@ if (require.main === module) {
     startServer();
 }
 
-module.exports = app;
+module.exports = server;
