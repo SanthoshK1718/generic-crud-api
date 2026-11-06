@@ -183,6 +183,44 @@
             font-size: 14px;
             color: #cbd5e1;
         }
+
+        .connection-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.72);
+        }
+
+        .loader-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 24px 28px;
+            border-radius: 16px;
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .loader-card p {
+            margin: 0;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #334155;
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -243,6 +281,13 @@
         </div>
     </div>
 
+    <div id="connectionLoader" class="connection-loader hidden" aria-live="polite">
+        <div class="loader-card">
+            <div class="spinner"></div>
+            <p>Connecting</p>
+        </div>
+    </div>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const apiBase = window.location.origin;
@@ -263,6 +308,7 @@
         const seatGrid = document.getElementById("seatGrid");
         const selectedList = document.getElementById("selectedList");
         const bookingError = document.getElementById("bookingError");
+        const connectionLoader = document.getElementById("connectionLoader");
 
         let hallId = params.get("hall") || "main";
         let userId = "";
@@ -328,6 +374,10 @@
                         ? `${seat.seatLabel} - ${seat.blockedBy}`
                         : seat.seatLabel;
 
+                    if (!socket || socket.readyState !== WebSocket.OPEN) {
+                        button.disabled = true;
+                    }
+
                     button.addEventListener("click", () => handleSeatClick(seat));
                     seatGrid.appendChild(button);
                 }
@@ -384,11 +434,21 @@
             nameScreen.classList.remove("hidden");
         };
 
+        const setConnectionLock = (locked) => {
+            connectionLoader.classList.toggle("hidden", !locked);
+            seatGrid.querySelectorAll(".seat").forEach((button) => {
+                button.disabled = locked;
+            });
+        };
+
         const connectWebSocket = () => {
             const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${wsProtocol}//${window.location.host}/ws?hallId=${encodeURIComponent(hallId)}&userId=${encodeURIComponent(userId)}`;
 
+            setConnectionLock(true);
+
             if (socket) {
+                socket.onclose = null;
                 socket.close();
             }
 
@@ -397,11 +457,13 @@
             socket.onopen = () => {
                 wsStatus.textContent = "Connected";
                 wsStatus.className = "status connected";
+                setConnectionLock(false);
             };
 
             socket.onclose = () => {
                 wsStatus.textContent = "Disconnected";
                 wsStatus.className = "status disconnected";
+                setConnectionLock(true);
                 setTimeout(connectWebSocket, 2000);
             };
 
